@@ -1,0 +1,497 @@
+/* ===========================
+   PONTOS BATIDOS PAGE - HISTÓRICO MODERNO
+   =========================== */
+
+.pontos-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-background);
+  padding: var(--spacing-lg);
+  position: relative;
+}
+
+/* ✅ HEADER CONSISTENTE */
+.pontos-header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  position: relative;
+}
+
+.pontos-header h2 {
+  flex: 1;
+  text-align: center;
+  margin: 0;
+  font-size: clamp(1.4rem, 5vw, 1.8rem);
+  font-weight: var(--font-weight-bolder);
+  color: var(--color-text);
+  letter-spacing: -0.02em;
+}
+
+/* ✅ CALENDÁRIO ESTILIZADO COM DESIGN SYSTEM */
+.calendar-wrapper {
+  background: var(--color-surface);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+}
+
+.react-calendar {
+  width: 100% !important;
+  background: transparent !important;
+  border: none !important;
+  font-family: var(--font-family) !important;
+}
+
+.react-calendar__navigation {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--spacing-md);
+}
+
+.react-calendar__navigation button {
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-text) !important;
+  font-weight: var(--font-weight-bold) !important;
+  font-size: clamp(0.9rem, 3vw, 1.1rem) !important;
+  min-width: 44px !important;
+  height: 44px !important;
+  border-radius: var(--border-radius-sm) !important;
+  transition: all var(--transition-fast) !important;
+}
+
+.react-calendar__navigation button:hover {
+  background: var(--color-border) !important;
+}
+
+.react-calendar__navigation button:disabled {
+  opacity: 0.5 !important;
+}
+
+.react-calendar__month-view__weekdays {
+  margin-bottom: var(--spacing-sm);
+}
+
+.react-calendar__month-view__weekdays__weekday {
+  padding: var(--spacing-sm) !important;
+  font-size: 0.8rem !important;
+  font-weight: var(--font-weight-bold) !important;
+  color: var(--color-text-light) !important;
+  text-transform: uppercase !important;
+}
+
+.react-calendar__month-view__weekdays__weekday abbr {
+  text-decoration: none !important;
+  border-bottom: none !important;
+}
+
+.react-calendar__tile {
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-text) !important;
+  font-size: clamp(0.8rem, 3vw, 0.9rem) !important;
+  font-weight: var(--font-weight-medium) !important;
+  padding: var(--spacing-sm) !important;
+  border-radius: var(--border-radius-circle) !important;
+  transition: all var(--transition-fast) !important;
+  position: relative;
+  height: 44px !important;
+}
+
+.react-calendar__tile:hover {
+  background: var(--color-border) !important;
+}
+
+.react-calendar__tile--now {
+  background: var(--color-primary) !important;
+  color: var(--color-background) !important;
+  font-weight: var(--font-weight-bold) !important;
+}
+
+.react-calendar__tile--active {
+  background: var(--color-primary) !important;
+  color: var(--color-background) !important;
+  font-weight: var(--font-weight-bold) !important;
+  transform: scale(1.1);
+}
+
+.react-calendar__tile--hasActive {
+  background: var(--color-primary-light) !important;
+}
+
+.react-calendar__month-view__days__day--neighboringMonth {
+  color: var(--color-text-light) !important;
+  opacity: 0.5 !important;
+}
+
+/* ✅ LISTA DE PONTOS MODERNA */
+.pontos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  flex: 1;
+}
+
+.ponto-card {
+  background: linear-gradient(135deg, var(--color-surface), #ffffff);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-lg);
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  gap: var(--spacing-md);
+  box-shadow: var(--shadow-sm);
+  border-left: 4px solid var(--color-border);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.ponto-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+  transition: left var(--transition-slow);
+}
+
+.ponto-card:hover::before {
+  left: 100%;
+}
+
+.ponto-card:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.ponto-card span:first-child {
+  font-weight: var(--font-weight-medium);
+  color: var(--color-text);
+  font-size: clamp(0.9rem, 3vw, 1rem);
+}
+
+/* ✅ STATUS COM CORES SEMÂNTICAS */
+.status {
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-bold);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border-radius: var(--border-radius-sm);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.status.ok {
+  background: #d5f4e6;
+  color: #27ae60;
+  border: 1px solid #27ae60;
+}
+
+.status.atraso {
+  background: #fdebd0;
+  color: #f39c12;
+  border: 1px solid #f39c12;
+}
+
+.status.falta {
+  background: #fadbd8;
+  color: #e74c3c;
+  border: 1px solid #e74c3c;
+}
+
+/* ✅ BOTÃO JUSTIFICAR MODERNO */
+.btn-justificar {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-sm);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  font-size: 0.8rem;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  white-space: nowrap;
+}
+
+.btn-justificar:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.btn-justificar:active {
+  transform: translateY(0);
+}
+
+/* ✅ ÁREA DE JUSTIFICATIVA EXPANDIDA */
+.justificativa-box {
+  background: var(--color-surface);
+  border-radius: var(--border-radius-lg);
+  padding: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+  box-shadow: var(--shadow-md);
+  border: 1px solid var(--color-border);
+  transition: all var(--transition-normal);
+}
+
+.justificativa-box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: var(--shadow-lg);
+}
+
+.justificativa-box textarea {
+  width: 100%;
+  border: 2px solid var(--color-border);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md);
+  background: var(--color-background);
+  resize: vertical;
+  min-height: 100px;
+  font-size: 0.9rem;
+  font-family: var(--font-family);
+  transition: all var(--transition-fast);
+  margin-bottom: var(--spacing-md);
+}
+
+.justificativa-box textarea:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+}
+
+.justificativa-box textarea::placeholder {
+  color: var(--color-text-light);
+}
+
+.justificativa-actions {
+  display: flex;
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+}
+
+.btn-anexar {
+  background: var(--color-surface);
+  border: 2px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  flex: 1;
+  min-width: 150px;
+}
+
+.btn-anexar:hover {
+  background: var(--color-border);
+  border-color: var(--color-primary);
+}
+
+.btn-enviar {
+  background: linear-gradient(135deg, #27ae60, #219653);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: 0.9rem;
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  flex: 1;
+  min-width: 150px;
+}
+
+.btn-enviar:hover {
+  background: linear-gradient(135deg, #219653, #1e8449);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+/* ✅ RODAPÉ FIXO CONSISTENTE */
+.footer-fixo {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-surface);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  margin-top: auto;
+  width: 100%;
+  position: sticky;
+  bottom: 0;
+  z-index: 50;
+}
+
+.btn-download {
+  background: linear-gradient(135deg, #3498db, #2980b9);
+  color: white;
+  border: none;
+  border-radius: var(--border-radius-md);
+  padding: var(--spacing-md) var(--spacing-xl);
+  font-size: clamp(0.9rem, 3vw, 1rem);
+  font-weight: var(--font-weight-bold);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  width: 100%;
+  max-width: 300px;
+  justify-content: center;
+}
+
+.btn-download:hover {
+  background: linear-gradient(135deg, #2980b9, #21618c);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+.btn-download:active {
+  transform: translateY(0);
+}
+
+/* ✅ ESTADO VAZIO */
+.text-muted {
+  text-align: center;
+  color: var(--color-text-light);
+  font-style: italic;
+  padding: var(--spacing-xl);
+  background: var(--color-surface);
+  border-radius: var(--border-radius-md);
+  margin: var(--spacing-lg) 0;
+}
+
+/* ✅ ANIMAÇÕES */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.calendar-wrapper {
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.pontos-lista {
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.justificativa-box {
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+.footer-fixo {
+  animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+/* ✅ RESPONSIVIDADE AVANÇADA */
+@media (max-width: 768px) {
+  .pontos-container {
+    padding: var(--spacing-md);
+  }
+  
+  .ponto-card {
+    grid-template-columns: 1fr;
+    gap: var(--spacing-sm);
+    text-align: center;
+  }
+  
+  .justificativa-actions {
+    flex-direction: column;
+  }
+  
+  .btn-anexar, .btn-enviar {
+    min-width: auto;
+  }
+  
+  .react-calendar__tile {
+    height: 40px !important;
+    padding: var(--spacing-xs) !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .pontos-container {
+    padding: var(--spacing-sm);
+  }
+  
+  .ponto-card {
+    padding: var(--spacing-md);
+  }
+  
+  .justificativa-box {
+    padding: var(--spacing-md);
+  }
+  
+  .calendar-wrapper {
+    padding: var(--spacing-sm);
+  }
+}
+
+@media (min-width: 1024px) {
+  .pontos-container {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  
+  .ponto-card {
+    grid-template-columns: 2fr 1fr auto;
+  }
+}
+
+/* ✅ ESTADOS DE INTERAÇÃO */
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+.btn.loading {
+  pointer-events: none;
+}
+
+.btn.loading::after {
+  content: '';
+  width: 16px;
+  height: 16px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin-left: var(--spacing-sm);
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+/* ✅ OTIMIZAÇÕES DE ACESSIBILIDADE */
+@media (prefers-reduced-motion: reduce) {
+  .ponto-card,
+  .btn,
+  .react-calendar__tile {
+    transition: none;
+    animation: none;
+  }
+  
+  .ponto-card:hover {
+    transform: none;
+  }
+}

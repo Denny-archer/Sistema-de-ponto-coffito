@@ -1,0 +1,253 @@
+/* ✅ ATUALIZAR: Container principal com Mobile-First */
+.home-container {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  background: var(--color-background);
+  padding: 0;
+  margin: 0;
+}
+
+/* ✅ HEADER COM LAYOUT LADO A LADO MODERNO */
+.home-header {
+  background: var(--color-background);
+  padding: var(--spacing-lg);
+  border-radius: 0 0 var(--border-radius-md) var(--border-radius-md);
+  box-shadow: var(--shadow-md);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--spacing-lg);
+  
+  /* Layout lado a lado por padrão */
+  flex-direction: row;
+}
+@media (min-width: 768px) {
+  .home-header {
+    flex-direction: row;
+    align-items: center;
+  }
+}
+
+.home-header h1 {
+  margin: 0;
+  font-size: clamp(1.1rem, 4vw, 1.4rem);
+  font-weight: var(--font-weight-bolder);
+  color: var(--color-text);
+  line-height: 1.3;
+}
+
+.home-header p {
+  margin: var(--spacing-xs) 0;
+  font-size: clamp(0.85rem, 3vw, 0.95rem);
+  color: var(--color-text-light);
+  font-weight: var(--font-weight-normal);
+}
+
+
+
+/* ✅ MELHORAR: Avatar responsivo e acessível */
+.header-avatar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.avatar-img {
+  width: clamp(80px, 20vw, 120px);
+  height: clamp(80px, 20vw, 120px);
+  border-radius: var(--border-radius-circle);
+  object-fit: cover;
+  border: 3px solid var(--color-border);
+  transition: var(--transition-normal);
+}
+
+.avatar-img:hover {
+  border-color: var(--color-primary);
+  transform: scale(1.02);
+}
+
+/* Fallback para imagem não carregada */
+.avatar-img:before {
+  content: "👤";
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-surface);
+  color: var(--color-text-light);
+  font-size: 2rem;
+}
+
+/* ✅ REFATORAR: Botão principal com melhor hierarquia visual */
+.card-bater-ponto {
+  width: min(200px, 70vw);
+  height: min(200px, 70vw);
+  margin: auto;
+  border-radius: var(--border-radius-circle);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-hover));
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  color: var(--color-background);
+  text-align: center;
+  padding: var(--spacing-md);
+  font-weight: var(--font-weight-bold);
+  font-size: clamp(1rem, 4vw, 1.1rem);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  box-shadow: var(--shadow-lg);
+  border: none;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efeito de profundidade */
+.card-bater-ponto:before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  transition: left var(--transition-slow);
+}
+
+.card-bater-ponto:hover:before {
+  left: 100%;
+}
+
+.card-bater-ponto:hover {
+  transform: scale(1.05) translateY(-2px);
+  box-shadow: var(--shadow-xl);
+}
+
+.card-bater-ponto:active {
+  transform: scale(0.98) translateY(0);
+  box-shadow: var(--shadow-md);
+}
+
+.card-bater-ponto:focus-visible {
+  outline: 3px solid var(--color-primary);
+  outline-offset: 3px;
+}
+
+.card-bater-ponto p {
+  margin: var(--spacing-sm) 0 0;
+  font-size: clamp(0.9rem, 3vw, 1rem);
+  font-weight: var(--font-weight-medium);
+  opacity: 0.9;
+}
+
+.clock-icon {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+}
+
+/* ✅ MELHORAR: Footer com melhor espaçamento */
+.home-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: var(--color-surface);
+  padding: var(--spacing-md);
+  border-top: 1px solid var(--color-border);
+  margin-top: auto;
+  width: 100%;
+}
+
+.home-footer button {
+  font-size: clamp(0.8rem, 3vw, 0.9rem);
+  color: var(--color-text);
+  background: transparent;
+  border: none;
+  padding: var(--spacing-sm) var(--spacing-md);
+  border-radius: var(--border-radius-sm);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
+  cursor: pointer;
+  transition: var(--transition-fast);
+  font-weight: var(--font-weight-medium);
+}
+
+.home-footer button:hover {
+  background: var(--color-border);
+  color: var(--color-primary);
+  transform: translateY(-1px);
+}
+
+.home-footer button:focus-visible {
+  outline: 2px solid var(--color-primary);
+  outline-offset: 2px;
+}
+
+/* ✅ ADICIONAR: Animações sutis */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.home-header,
+.card-bater-ponto,
+.home-footer {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+.card-bater-ponto {
+  animation-delay: 0.2s;
+}
+
+.home-footer {
+  animation-delay: 0.4s;
+}
+
+/* Loading state para o botão */
+.card-bater-ponto.loading {
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.card-bater-ponto.loading:after {
+  content: '';
+  width: 20px;
+  height: 20px;
+  border: 2px solid transparent;
+  border-top: 2px solid currentColor;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+
+/* ✅ ADICIONAR: Otimizações */
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Melhorar rendering de fonts */
+body {
+  font-kerning: normal;
+  text-rendering: optimizeSpeed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Otimizar imagens */
+.avatar-img {
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
