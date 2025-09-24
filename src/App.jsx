@@ -2,10 +2,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import Login from "./pages/login";
 import Home from "./pages/home";
 import Ponto from "./pages/ponto";
-import Selfie from "./pages/selfie";     // 👈 nova rota
+import Selfie from "./pages/selfie";
 import Confirmacao from "./pages/confirmacao";
 import PontosBatidos from "./pages/pontosBatidos";
-
+import DashboardGestor from "./pages/dashbordGestor";
 
 function App() {
   return (
@@ -28,6 +28,9 @@ function App() {
 
         {/* Tela de pontos batidos */}
         <Route path="/pontos" element={<PontosBatidos />} />
+
+        {/* Tela do Dashboard do Gestor */}
+        <Route path="/gestor" element={<DashboardGestor />} />
 
         {/* Redireciona para login por padrão */}
         <Route path="*" element={<Navigate to="/login" replace />} />

@@ -77,7 +77,7 @@ function Ponto() {
       </div>
 
       {/* Rodapé fixo igual à home */}
-      <footer className="ponto-footer">
+      {/* <footer className="ponto-footer">
         <button 
           className="status btn-link" 
           onClick={() => navigate("/pontos")}
@@ -86,7 +86,7 @@ function Ponto() {
           <CalendarDays size={20} /> 
           <span>Pontos batidos</span>
         </button>
-      </footer>
+      </footer> */}
     </div>
   );
 }
