@@ -1,125 +1,209 @@
-import React, { useEffect } from "react";
-import { CheckCircle, XCircle, Clock, FileText } from "lucide-react";
+// 📂 src/pages/DashboardGestor.jsx
+import React, { useEffect, useState } from "react";
+import Sidebar from "../components/Sidebar";
+import Topbar from "../components/Topbar";
+import { 
+  CheckCircle, 
+  XCircle, 
+  Clock, 
+  FileText, 
+  User, 
+  Download, 
+  Filter, 
+  MoreVertical, 
+  BarChart3 
+} from "lucide-react";
 
 function DashboardGestor() {
-  // adiciona classe ao body apenas nesta página
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   useEffect(() => {
     document.body.classList.add("dashboard-page");
     return () => document.body.classList.remove("dashboard-page");
   }, []);
 
-  // Mock de dados
+  // KPIs mockados
   const kpis = [
-    { label: "Ativos", value: 12, variant: "success", icon: <CheckCircle size={20} /> },
-    { label: "Ausentes", value: 3, variant: "danger", icon: <XCircle size={20} /> },
-    { label: "Extras", value: 5, variant: "warning", icon: <Clock size={20} /> },
-    { label: "Justificativas", value: 2, variant: "info", icon: <FileText size={20} /> },
-  ];
-
-  const justificativas = [
-    { nome: "João", motivo: "atraso 15min" },
-    { nome: "Maria", motivo: "falta manhã" },
+    { label: "Presentes", value: 12, total: 15, variant: "success", icon: <CheckCircle size={24} />, change: "+2", description: "Colaboradores ativos hoje" },
+    { label: "Ausentes", value: 3, total: 15, variant: "danger", icon: <XCircle size={24} />, change: "+1", description: "Não registraram ponto" },
+    { label: "Horas Extras", value: 5, variant: "warning", icon: <Clock size={24} />, change: "-1", description: "Com horas extras hoje" },
+    { label: "Justificativas", value: 2, variant: "info", icon: <FileText size={24} />, change: "+0", description: "Pendentes de análise" },
   ];
 
   const colaboradores = [
-    { nome: "João", entrada: "08:05", saida: "12:00", status: "Trabalhando" },
-    { nome: "Maria", entrada: "--:--", saida: "--:--", status: "Ausente" },
+    { id: 1, nome: "João Silva", entrada: "08:05", saida: "12:00", saidaAlmoco: "13:00", status: "trabalhando", departamento: "TI", horasExtras: "00:30" },
+    { id: 2, nome: "Maria Santos", entrada: "--:--", saida: "--:--", saidaAlmoco: "--:--", status: "ausente", departamento: "RH", horasExtras: "00:00" },
+    { id: 3, nome: "Pedro Costa", entrada: "07:45", saida: "17:30", saidaAlmoco: "12:00", status: "finalizado", departamento: "Vendas", horasExtras: "01:15" },
+    { id: 4, nome: "Ana Oliveira", entrada: "08:00", saida: "12:00", saidaAlmoco: "13:00", status: "almoco", departamento: "Marketing", horasExtras: "00:00" },
   ];
 
-  return (
-    <div className="container my-4">
-      {/* Cabeçalho */}
-      <header className="d-flex justify-content-between align-items-center p-3 bg-dark text-white rounded shadow-sm">
-        <div className="fw-bold">LOGO</div>
-        <nav className="d-flex gap-3">
-          <a href="#" className="text-white text-decoration-none">Cadastros</a>
-          <a href="#" className="text-white text-decoration-none">Folha</a>
-          <a href="#" className="text-white text-decoration-none">Planejamento</a>
-          <a href="#" className="text-white text-decoration-none">Gestão</a>
-          <a href="#" className="text-white text-decoration-none">Admin</a>
-          <a href="#" className="text-white text-decoration-none">Sair</a>
-        </nav>
-      </header>
+  const getStatusBadge = (status) => {
+    const config = {
+      trabalhando: { class: "bg-success", text: "Trabalhando" },
+      ausente: { class: "bg-danger", text: "Ausente" },
+      finalizado: { class: "bg-info", text: "Finalizado" },
+      almoco: { class: "bg-warning", text: "Almoço" }
+    };
+    const cfg = config[status] || config.ausente;
+    return <span className={`badge ${cfg.class}`}>{cfg.text}</span>;
+  };
 
-      {/* KPIs */}
-      <section className="row g-3 mt-4">
-        {kpis.map((kpi, idx) => (
-          <div key={idx} className="col-12 col-sm-6 col-md-3">
-            <div className={`card text-white bg-${kpi.variant} shadow-sm`}>
-              <div className="card-body d-flex flex-column align-items-center">
-                <div className="mb-2">{kpi.icon}</div>
-                <h6 className="card-title">{kpi.label}</h6>
-                <p className="card-text fs-5 fw-bold">{kpi.value}</p>
+  return (
+    <div className="dashboard-container">
+      <Sidebar />
+      <main className="main-content">
+        <Topbar setSidebarOpen={setSidebarOpen} />
+
+        {/* KPIs Section */}
+        <section className="kpis-section">
+          <div className="section-header">
+            <h2>Visão Geral - Hoje</h2>
+            <div className="section-actions">
+              <button className="btn btn-outline-secondary btn-sm">
+                <Filter size={16} className="me-1" />
+                Filtrar
+              </button>
+              <button className="btn btn-outline-secondary btn-sm">
+                <Download size={16} className="me-1" />
+                Exportar
+              </button>
+            </div>
+          </div>
+
+          <div className="kpis-grid">
+            {kpis.map((kpi, idx) => (
+              <div key={idx} className={`kpi-card kpi-${kpi.variant}`}>
+                <div className="kpi-icon">{kpi.icon}</div>
+                <div className="kpi-content">
+                  <div className="kpi-value">
+                    {kpi.value}{kpi.total && <span>/{kpi.total}</span>}
+                  </div>
+                  <div className="kpi-label">{kpi.label}</div>
+                  <div className="kpi-description">{kpi.description}</div>
+                </div>
+                <div className={`kpi-change change-${kpi.change.startsWith('+') ? 'positive' : 'negative'}`}>
+                  {kpi.change}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* Charts and Justifications Section */}
+        <section className="content-grid">
+          {/* Gráfico */}
+          <div className="chart-card">
+            <div className="card-header">
+              <h3>Distribuição de Presença</h3>
+              <button className="icon-btn">
+                <MoreVertical size={16} />
+              </button>
+            </div>
+            <div className="chart-placeholder">
+              <div className="chart-content">
+                <BarChart3 size={48} className="text-muted" />
+                <p>Gráfico de distribuição</p>
+                <small className="text-muted">Visualização interativa dos dados</small>
               </div>
             </div>
           </div>
-        ))}
-      </section>
 
-      {/* Gráfico + Justificativas */}
-      <section className="row g-3 mt-4">
-        {/* Gráfico */}
-        <div className="col-12 col-lg-7">
-          <div className="card shadow-sm text-center p-5">
-            [ Gráfico Circular ]
+          {/* Justificativas */}
+          <div className="justifications-card">
+            <div className="card-header">
+              <h3>Justificativas Pendentes</h3>
+              <span className="badge bg-danger">2</span>
+            </div>
+            <div className="justifications-list">
+              <div className="justification-item">
+                <div className="justification-info">
+                  <div className="user-name">João Silva</div>
+                  <div className="justification-details">
+                    <span>Atraso de 15min</span>
+                    <span>25/09/2025</span>
+                  </div>
+                </div>
+                <div className="justification-actions">
+                  <button className="btn btn-success btn-sm">Aprovar</button>
+                  <button className="btn btn-outline-danger btn-sm">Rejeitar</button>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
+        </section>
 
-        {/* Justificativas */}
-        <div className="col-12 col-lg-5">
-          <div className="card shadow-sm">
+        {/* Tabela de Colaboradores */}
+        <section className="table-section">
+          <div className="card">
+            <div className="card-header">
+              <h3>Colaboradores - Hoje</h3>
+              <div className="table-actions">
+                <button className="btn btn-outline-primary btn-sm">
+                  <Download size={16} className="me-1" />
+                  Exportar
+                </button>
+              </div>
+            </div>
             <div className="card-body">
-              <h5 className="card-title">Justificativas Pendentes</h5>
-              <ul className="list-group list-group-flush">
-                {justificativas.map((j, idx) => (
-                  <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
-                    <span>{j.nome} - {j.motivo}</span>
-                    <div>
-                      <button className="btn btn-success btn-sm me-2">Aprovar</button>
-                      <button className="btn btn-danger btn-sm">Rejeitar</button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Tabela */}
-      <section className="mt-4">
-        <div className="card shadow-sm">
-          <div className="card-body">
-            <h5 className="card-title mb-3">Colaboradores Hoje</h5>
-            <div className="table-responsive">
-              <table className="table table-striped table-hover align-middle">
-                <thead className="table-light">
-                  <tr>
-                    <th>Nome</th>
-                    <th>Entrada</th>
-                    <th>Saída</th>
-                    <th>Status</th>
-                    <th>Ações</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {colaboradores.map((c, idx) => (
-                    <tr key={idx}>
-                      <td>{c.nome}</td>
-                      <td>{c.entrada}</td>
-                      <td>{c.saida}</td>
-                      <td>{c.status}</td>
-                      <td>
-                        <button className="btn btn-dark btn-sm">Histórico</button>
-                      </td>
+              <div className="table-responsive">
+                <table className="table table-hover align-middle">
+                  <thead>
+                    <tr>
+                      <th>Nome</th>
+                      <th>Departamento</th>
+                      <th>Entrada</th>
+                      <th>Almoço</th>
+                      <th>Saída</th>
+                      <th>Horas Extras</th>
+                      <th>Status</th>
+                      <th>Ações</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {colaboradores.map((colab) => (
+                      <tr key={colab.id}>
+                        <td>
+                          <div className="user-cell">
+                            <div className="user-avatar-sm">
+                              <User size={14} />
+                            </div>
+                            {colab.nome}
+                          </div>
+                        </td>
+                        <td>{colab.departamento}</td>
+                        <td>
+                          <span className={colab.entrada === '--:--' ? 'text-muted' : 'text-success'}>
+                            {colab.entrada}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={colab.saidaAlmoco === '--:--' ? 'text-muted' : 'text-warning'}>
+                            {colab.saidaAlmoco}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={colab.saida === '--:--' ? 'text-muted' : 'text-info'}>
+                            {colab.saida}
+                          </span>
+                        </td>
+                        <td>
+                          <span className={colab.horasExtras !== '00:00' ? 'text-warning fw-bold' : 'text-muted'}>
+                            {colab.horasExtras}
+                          </span>
+                        </td>
+                        <td>{getStatusBadge(colab.status)}</td>
+                        <td>
+                          <button className="btn btn-outline-dark btn-sm">Histórico</button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      </main>
     </div>
   );
 }
