@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
-import { CheckCircle, XCircle, Clock, FileText } from "lucide-react"; // ícones
-import "../styles/dashboardGestor.css";
+import { CheckCircle, XCircle, Clock, FileText } from "lucide-react";
 
 function DashboardGestor() {
   // adiciona classe ao body apenas nesta página
@@ -9,12 +8,12 @@ function DashboardGestor() {
     return () => document.body.classList.remove("dashboard-page");
   }, []);
 
-  // Mock de dados (futuramente virá da API)
+  // Mock de dados
   const kpis = [
-    { label: "Ativos", value: 12, className: "ativo", icon: <CheckCircle /> },
-    { label: "Ausentes", value: 3, className: "ausente", icon: <XCircle /> },
-    { label: "Extras", value: 5, className: "extra", icon: <Clock /> },
-    { label: "Justificativas", value: 2, className: "pendente", icon: <FileText /> },
+    { label: "Ativos", value: 12, variant: "success", icon: <CheckCircle size={20} /> },
+    { label: "Ausentes", value: 3, variant: "danger", icon: <XCircle size={20} /> },
+    { label: "Extras", value: 5, variant: "warning", icon: <Clock size={20} /> },
+    { label: "Justificativas", value: 2, variant: "info", icon: <FileText size={20} /> },
   ];
 
   const justificativas = [
@@ -28,30 +27,29 @@ function DashboardGestor() {
   ];
 
   return (
-    <div className="dashboard-container container-fluid">
+    <div className="container my-4">
       {/* Cabeçalho */}
-      <header className="dashboard-header d-flex justify-content-between align-items-center">
-        <div className="logo">LOGO</div>
-        <nav className="menu d-flex">
-          <a href="#">Cadastros</a>
-          <a href="#">Folha</a>
-          <a href="#">Planejamento</a>
-          <a href="#">Gestão</a>
-          <a href="#">Admin</a>
-          <a href="#">Sair</a>
+      <header className="d-flex justify-content-between align-items-center p-3 bg-dark text-white rounded shadow-sm">
+        <div className="fw-bold">LOGO</div>
+        <nav className="d-flex gap-3">
+          <a href="#" className="text-white text-decoration-none">Cadastros</a>
+          <a href="#" className="text-white text-decoration-none">Folha</a>
+          <a href="#" className="text-white text-decoration-none">Planejamento</a>
+          <a href="#" className="text-white text-decoration-none">Gestão</a>
+          <a href="#" className="text-white text-decoration-none">Admin</a>
+          <a href="#" className="text-white text-decoration-none">Sair</a>
         </nav>
       </header>
 
       {/* KPIs */}
-      <section className="cards-kpi row g-3 mt-3">
+      <section className="row g-3 mt-4">
         {kpis.map((kpi, idx) => (
           <div key={idx} className="col-12 col-sm-6 col-md-3">
-            <div className={`card p-3 ${kpi.className}`}>
-              <div className="d-flex flex-column align-items-center">
+            <div className={`card text-white bg-${kpi.variant} shadow-sm`}>
+              <div className="card-body d-flex flex-column align-items-center">
                 <div className="mb-2">{kpi.icon}</div>
-                <div>
-                  {kpi.label}: {kpi.value}
-                </div>
+                <h6 className="card-title">{kpi.label}</h6>
+                <p className="card-text fs-5 fw-bold">{kpi.value}</p>
               </div>
             </div>
           </div>
@@ -59,64 +57,67 @@ function DashboardGestor() {
       </section>
 
       {/* Gráfico + Justificativas */}
-      <section className="dashboard-main row g-3 mt-3">
+      <section className="row g-3 mt-4">
         {/* Gráfico */}
-        <div className="col-12 col-md-7">
-          <div className="grafico card p-4 text-center">[ Gráfico Circular ]</div>
+        <div className="col-12 col-lg-7">
+          <div className="card shadow-sm text-center p-5">
+            [ Gráfico Circular ]
+          </div>
         </div>
 
         {/* Justificativas */}
-        <div className="col-12 col-md-5">
-          <div className="justificativas card p-3">
-            <h5 className="mb-3">Justificativas Pendentes</h5>
-            <ul className="list-unstyled">
-              {justificativas.map((j, idx) => (
-                <li
-                  key={idx}
-                  className="d-flex justify-content-between align-items-center mb-2"
-                >
-                  <span>
-                    {j.nome} - {j.motivo}
-                  </span>
-                  <div>
-                    <button className="btn btn-success btn-sm me-2">Aprovar</button>
-                    <button className="btn btn-danger btn-sm">Rejeitar</button>
-                  </div>
-                </li>
-              ))}
-            </ul>
+        <div className="col-12 col-lg-5">
+          <div className="card shadow-sm">
+            <div className="card-body">
+              <h5 className="card-title">Justificativas Pendentes</h5>
+              <ul className="list-group list-group-flush">
+                {justificativas.map((j, idx) => (
+                  <li key={idx} className="list-group-item d-flex justify-content-between align-items-center">
+                    <span>{j.nome} - {j.motivo}</span>
+                    <div>
+                      <button className="btn btn-success btn-sm me-2">Aprovar</button>
+                      <button className="btn btn-danger btn-sm">Rejeitar</button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
         </div>
       </section>
 
       {/* Tabela */}
-      <section className="tabela mt-3">
-        <h3>Colaboradores Hoje</h3>
-        <div className="table-responsive">
-          <table className="table table-striped table-hover align-middle">
-            <thead>
-              <tr>
-                <th>Nome</th>
-                <th>Entrada</th>
-                <th>Saída</th>
-                <th>Status</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {colaboradores.map((c, idx) => (
-                <tr key={idx}>
-                  <td>{c.nome}</td>
-                  <td>{c.entrada}</td>
-                  <td>{c.saida}</td>
-                  <td>{c.status}</td>
-                  <td>
-                    <button className="btn btn-dark btn-sm">Histórico</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <section className="mt-4">
+        <div className="card shadow-sm">
+          <div className="card-body">
+            <h5 className="card-title mb-3">Colaboradores Hoje</h5>
+            <div className="table-responsive">
+              <table className="table table-striped table-hover align-middle">
+                <thead className="table-light">
+                  <tr>
+                    <th>Nome</th>
+                    <th>Entrada</th>
+                    <th>Saída</th>
+                    <th>Status</th>
+                    <th>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {colaboradores.map((c, idx) => (
+                    <tr key={idx}>
+                      <td>{c.nome}</td>
+                      <td>{c.entrada}</td>
+                      <td>{c.saida}</td>
+                      <td>{c.status}</td>
+                      <td>
+                        <button className="btn btn-dark btn-sm">Histórico</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
         </div>
       </section>
     </div>
