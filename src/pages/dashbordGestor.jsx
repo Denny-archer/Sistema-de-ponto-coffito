@@ -58,16 +58,7 @@ function DashboardGestor() {
         <section className="kpis-section">
           <div className="section-header">
             <h2>Visão Geral - Hoje</h2>
-            <div className="section-actions">
-              <button className="btn btn-outline-secondary btn-sm">
-                <Filter size={16} className="me-1" />
-                Filtrar
-              </button>
-              <button className="btn btn-outline-secondary btn-sm">
-                <Download size={16} className="me-1" />
-                Exportar
-              </button>
-            </div>
+            
           </div>
 
           <div className="kpis-grid">
@@ -135,14 +126,9 @@ function DashboardGestor() {
         {/* Tabela de Colaboradores */}
         <section className="table-section">
           <div className="card">
-            <div className="card-header">
+            <div className="card-header ">
               <h3>Colaboradores - Hoje</h3>
-              <div className="table-actions">
-                <button className="btn btn-outline-primary btn-sm">
-                  <Download size={16} className="me-1" />
-                  Exportar
-                </button>
-              </div>
+              
             </div>
             <div className="card-body">
               <div className="table-responsive">

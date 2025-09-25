@@ -504,6 +504,8 @@ body {
   flex: 1;
   padding: 1rem;
   overflow-x: hidden;
+  position: relative;
+  left: 500px;
 }
 
 /* Top Bar */
