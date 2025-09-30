@@ -24,8 +24,8 @@ function DashboardGestor() {
 
   // KPIs mockados
   const kpis = [
-    { label: "Presentes", value: 12, total: 15, variant: "success", icon: <CheckCircle size={24} />, change: "+2", description: "Colaboradores ativos hoje" },
-    { label: "Ausentes", value: 3, total: 15, variant: "danger", icon: <XCircle size={24} />, change: "+1", description: "Não registraram ponto" },
+    {  value: 12, total: 15, variant: "success", icon: <CheckCircle size={24} />, change: "+2", description: "Colaboradores ativos hoje" },
+    {  value: 3, total: 15, variant: "danger", icon: <XCircle size={24} />, change: "+1", description: "Não registraram ponto" },
     { label: "Horas Extras", value: 5, variant: "warning", icon: <Clock size={24} />, change: "-1", description: "Com horas extras hoje" },
     { label: "Justificativas", value: 2, variant: "info", icon: <FileText size={24} />, change: "+0", description: "Pendentes de análise" },
   ];
