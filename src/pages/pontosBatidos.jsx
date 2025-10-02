@@ -1,6 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
+import { getBatidas } from "../services/batidas";// 👈 backend
 import { Download, ArrowLeft, Clock, CalendarDays, BarChart3, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import "react-calendar/dist/Calendar.css";
 
@@ -10,109 +11,175 @@ function PontosBatidos() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeStartDate, setActiveStartDate] = useState(new Date());
   const [baixando, setBaixando] = useState(false);
-  const [viewMode, setViewMode] = useState("dia"); // 'dia' ou 'mes'
+  const [viewMode, setViewMode] = useState("dia");
+  const [registros, setRegistros] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  // Mock registros - dados mais realistas
-  const registros = [
-    {
-      data: "23/09/2025",
-      batidas: ["08:00", "12:00", "13:02", "17:00"],
-      horasTrabalhadas: "07:58",
-      horasPrevistas: "08:00",
-      bancoHoras: "-00:02",
-      status: "completo",
-      observacao: "Pausa almoço de 1h02min"
-    },
-    {
-      data: "24/09/2025",
-      batidas: ["08:00", "12:00", null, null],
-      horasTrabalhadas: "04:00",
-      horasPrevistas: "08:00",
-      bancoHoras: "-04:00",
-      status: "incompleto",
-      observacao: "Saída antecipada"
-    },
-    {
-      data: "25/09/2025",
-      batidas: ["07:55", "12:10", "13:05", "17:15"],
-      horasTrabalhadas: "08:25",
-      horasPrevistas: "08:00",
-      bancoHoras: "+00:25",
-      status: "completo",
-      observacao: "Horas extras"
+  // Carrega batidas do backend
+  useEffect(() => {
+    carregarBatidas();
+  }, []);
+
+  const carregarBatidas = async () => {
+    setLoading(true);
+    try {
+      const batidas = await getBatidas();
+      const agrupadas = agruparPorDia(batidas);
+      setRegistros(agrupadas);
+    } catch (e) {
+      console.error("Erro ao carregar batidas:", e);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const resumoMes = {
-    horasTrabalhadas: "139:27",
-    horasPrevistas: "176:00",
-    bancoHoras: "-00:10",
-    horasPositivas: "00:44",
-    horasNegativas: "-00:54",
-    bancoAcumuladoAnterior: "-00:05",
-    bancoMes: "-00:10",
-    diasTrabalhados: 22,
-    diasUteis: 23,
-    percentual: "96%"
   };
 
-  const formatDate = (date) => date.toLocaleDateString("pt-BR");
+  // Função auxiliar para organizar por dia
+  const agruparPorDia = (batidas) => {
+    const registrosMap = {};
 
-  const getDayStatus = (date) => {
-    const dataStr = formatDate(date);
-    const registro = registros.find((r) => r.data === dataStr);
-    
-    if (!registro) return "sem-registro";
-    if (registro.status === "incompleto") return "incompleto";
-    if (parseFloat(registro.bancoHoras.replace(':', '.')) > 0) return "positivo";
-    if (parseFloat(registro.bancoHoras.replace(':', '.')) < 0) return "negativo";
+    batidas.forEach((b) => {
+      const data = new Date(b.data_batida);
+      const dataStr = data.toLocaleDateString("pt-BR");
+
+      if (!registrosMap[dataStr]) {
+        registrosMap[dataStr] = {
+          data: dataStr,
+          batidas: [],
+          horasTrabalhadas: "00:00",
+          horasPrevistas: "08:00", // depois pode vir do usuário
+          bancoHoras: "00:00",
+          status: "incompleto",
+          observacao: ""
+        };
+      }
+
+      registrosMap[dataStr].batidas.push(
+        data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
+      );
+    });
+
+    // Ordena e calcula horas
+    Object.values(registrosMap).forEach((r) => {
+      r.batidas.sort();
+      const total = calcularHoras(r.batidas);
+      r.horasTrabalhadas = total;
+      r.bancoHoras = calcularBanco(total, r.horasPrevistas);
+      r.status = definirStatus(r);
+    });
+
+    return Object.values(registrosMap);
+  };
+
+  // Calcular horas trabalhadas (par entrada/saída)
+  const calcularHoras = (batidas) => {
+    if (batidas.length < 2) return "00:00";
+    let totalMinutos = 0;
+
+    for (let i = 0; i < batidas.length; i += 2) {
+      if (batidas[i + 1]) {
+        const entrada = parseHora(batidas[i]);
+        const saida = parseHora(batidas[i + 1]);
+        totalMinutos += saida - entrada;
+      }
+    }
+    return formatarMinutos(totalMinutos);
+  };
+
+  const calcularBanco = (trabalhadas, previstas) => {
+    const t = toMin(trabalhadas);
+    const p = toMin(previstas);
+    const saldo = t - p;
+    return (saldo >= 0 ? "+" : "") + formatarMinutos(saldo);
+  };
+
+  const definirStatus = (r) => {
+    if (r.batidas.length < 4) return "incompleto";
+    if (r.bancoHoras.startsWith("+")) return "positivo";
+    if (r.bancoHoras.startsWith("-")) return "negativo";
     return "completo";
   };
 
+  // Helpers
+  const parseHora = (str) => {
+    const [h, m] = str.split(":").map(Number);
+    return h * 60 + m;
+  };
+  const toMin = (str) => parseHora(str);
+  const formatarMinutos = (min) => {
+    const h = Math.floor(Math.abs(min) / 60);
+    const m = Math.abs(min) % 60;
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+  };
+
+  // Detalhe do dia
+  const formatDate = (date) => date.toLocaleDateString("pt-BR");
+  const detalheDia = useMemo(() => {
+    const dataStr = formatDate(selectedDate);
+    return registros.find((r) => r.data === dataStr) || null;
+  }, [selectedDate, registros]);
+
+  // Status por dia (para calendário)
+  const getDayStatus = (date) => {
+    const dataStr = formatDate(date);
+    const registro = registros.find((r) => r.data === dataStr);
+
+    if (!registro) return "sem-registro";
+    return registro.status;
+  };
+
+  // Tile do calendário
   const tileContent = ({ date, view }) => {
-    if (view !== 'month') return null;
-    
+    if (view !== "month") return null;
     const status = getDayStatus(date);
     const isToday = formatDate(date) === formatDate(new Date());
-    
+
     return (
       <div className="d-flex justify-content-center mt-1">
-        {isToday && <div className="dot-indicator bg-primary" style={{width: '4px', height: '4px', borderRadius: '50%'}}></div>}
+        {isToday && (
+          <div
+            className="dot-indicator bg-primary"
+            style={{ width: "4px", height: "4px", borderRadius: "50%" }}
+          ></div>
+        )}
         {status !== "sem-registro" && (
-          <div className={`dot-indicator ${
-            status === "completo" ? "bg-success" :
-            status === "positivo" ? "bg-info" :
-            status === "negativo" ? "bg-warning" :
-            "bg-danger"
-          }`} style={{width: '6px', height: '6px', borderRadius: '50%', marginLeft: '2px'}}></div>
+          <div
+            className={`dot-indicator ${
+              status === "completo"
+                ? "bg-success"
+                : status === "positivo"
+                ? "bg-info"
+                : status === "negativo"
+                ? "bg-warning"
+                : "bg-danger"
+            }`}
+            style={{
+              width: "6px",
+              height: "6px",
+              borderRadius: "50%",
+              marginLeft: "2px"
+            }}
+          ></div>
         )}
       </div>
     );
   };
 
   const tileClassName = ({ date, view }) => {
-    if (view !== 'month') return '';
-    
+    if (view !== "month") return "";
     const isToday = formatDate(date) === formatDate(new Date());
     const status = getDayStatus(date);
-    
+
     let classes = [];
-    if (isToday) classes.push('border border-primary border-2');
-    if (status !== "sem-registro") classes.push('has-registry');
-    
-    return classes.join(' ');
+    if (isToday) classes.push("border border-primary border-2");
+    if (status !== "sem-registro") classes.push("has-registry");
+    return classes.join(" ");
   };
 
-  const detalheDia = useMemo(() => {
-    const dataStr = formatDate(selectedDate);
-    return registros.find((r) => r.data === dataStr) || null;
-  }, [selectedDate, registros]);
-
+  // Função de download (simulada)
   const handleDownload = async () => {
     setBaixando(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      // Simular download real aqui
       alert("✅ Comprovante baixado com sucesso!");
     } catch {
       alert("❌ Erro ao baixar comprovante");
@@ -123,18 +190,24 @@ function PontosBatidos() {
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case "completo": return <CheckCircle2 size={16} className="text-success" />;
-      case "incompleto": return <XCircle size={16} className="text-danger" />;
-      case "positivo": return <AlertCircle size={16} className="text-info" />;
-      case "negativo": return <AlertCircle size={16} className="text-warning" />;
-      default: return <Clock size={16} className="text-muted" />;
+      case "completo":
+        return <CheckCircle2 size={16} className="text-success" />;
+      case "incompleto":
+        return <XCircle size={16} className="text-danger" />;
+      case "positivo":
+        return <AlertCircle size={16} className="text-info" />;
+      case "negativo":
+        return <AlertCircle size={16} className="text-warning" />;
+      default:
+        return <Clock size={16} className="text-muted" />;
     }
   };
 
+  // --- JSX mantém praticamente igual ao que você tinha ---
   return (
-    <div className="container-fluid d-flex flex-column min-vh-100 py-3 py-md-4 px-3 px-md-4 bg-light">
+    <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3 bg-light">
       {/* Header */}
-      <div className="w-100 mb-3 mb-md-4">
+      <div className="w-100 mb-3">
         <div className="d-flex align-items-center">
           <button
             className="btn btn-outline-secondary btn-sm me-3"
@@ -148,11 +221,14 @@ function PontosBatidos() {
               <CalendarDays size={24} className="text-primary me-2" />
               Pontos Batidos
             </h2>
-            <small className="text-muted">Controle e acompanhamento de registros</small>
+            <small className="text-muted">
+              Controle e acompanhamento de registros
+            </small>
           </div>
         </div>
       </div>
 
+      {/* Conteúdo principal */}
       <div className="row justify-content-center flex-grow-1">
         <div className="col-12 col-xl-10">
           <div className="row g-3 g-md-4">
@@ -166,15 +242,19 @@ function PontosBatidos() {
                       Calendário
                     </h5>
                     <div className="btn-group btn-group-sm">
-                      <button 
-                        className={`btn ${viewMode === 'dia' ? 'btn-primary' : 'btn-outline-primary'}`}
-                        onClick={() => setViewMode('dia')}
+                      <button
+                        className={`btn ${
+                          viewMode === "dia" ? "btn-primary" : "btn-outline-primary"
+                        }`}
+                        onClick={() => setViewMode("dia")}
                       >
                         Dia
                       </button>
-                      <button 
-                        className={`btn ${viewMode === 'mes' ? 'btn-primary' : 'btn-outline-primary'}`}
-                        onClick={() => setViewMode('mes')}
+                      <button
+                        className={`btn ${
+                          viewMode === "mes" ? "btn-primary" : "btn-outline-primary"
+                        }`}
+                        onClick={() => setViewMode("mes")}
                       >
                         Mês
                       </button>
@@ -182,49 +262,34 @@ function PontosBatidos() {
                   </div>
                 </div>
                 <div className="card-body">
-                  <Calendar
-                    onChange={setSelectedDate}
-                    value={selectedDate}
-                    locale="pt-BR"
-                    defaultView="month"
-                    showNavigation={true}
-                    activeStartDate={activeStartDate}
-                    onActiveStartDateChange={({ activeStartDate }) => setActiveStartDate(activeStartDate)}
-                    tileContent={tileContent}
-                    tileClassName={tileClassName}
-                    className="w-100 border-0"
-                  />
-                  
-                  {/* Legenda */}
-                  <div className="mt-3 pt-3 border-top">
-                    <small className="text-muted d-block mb-2">Legenda:</small>
-                    <div className="d-flex flex-wrap gap-3">
-                      <div className="d-flex align-items-center">
-                        <div className="dot-indicator bg-success me-1" style={{width: '8px', height: '8px', borderRadius: '50%'}}></div>
-                        <small>Completo</small>
-                      </div>
-                      <div className="d-flex align-items-center">
-                        <div className="dot-indicator bg-info me-1" style={{width: '8px', height: '8px', borderRadius: '50%'}}></div>
-                        <small>Positivo</small>
-                      </div>
-                      <div className="d-flex align-items-center">
-                        <div className="dot-indicator bg-warning me-1" style={{width: '8px', height: '8px', borderRadius: '50%'}}></div>
-                        <small>Negativo</small>
-                      </div>
-                      <div className="d-flex align-items-center">
-                        <div className="dot-indicator bg-danger me-1" style={{width: '8px', height: '8px', borderRadius: '50%'}}></div>
-                        <small>Incompleto</small>
-                      </div>
+                  {loading ? (
+                    <div className="text-center py-5">
+                      <div className="spinner-border text-primary" role="status"></div>
+                      <p className="mt-2 text-muted">Carregando registros...</p>
                     </div>
-                  </div>
+                  ) : (
+                    <Calendar
+                      onChange={setSelectedDate}
+                      value={selectedDate}
+                      locale="pt-BR"
+                      defaultView="month"
+                      showNavigation={true}
+                      activeStartDate={activeStartDate}
+                      onActiveStartDateChange={({ activeStartDate }) =>
+                        setActiveStartDate(activeStartDate)
+                      }
+                      tileContent={tileContent}
+                      tileClassName={tileClassName}
+                      className="w-100 border-0"
+                    />
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Detalhes do Dia/Resumo do Mês */}
+            {/* Detalhes do Dia */}
             <div className="col-12 col-lg-6">
               {viewMode === "dia" ? (
-                /* Detalhe do Dia */
                 <div className="card border-0 shadow-sm h-100">
                   <div className="card-header bg-white border-0">
                     <h5 className="fw-bold mb-0 d-flex align-items-center">
@@ -235,37 +300,53 @@ function PontosBatidos() {
                   <div className="card-body">
                     {detalheDia ? (
                       <>
-                        {/* Status */}
                         <div className="d-flex align-items-center mb-3 p-3 rounded bg-light">
                           {getStatusIcon(detalheDia.status)}
                           <span className="ms-2 fw-medium">
-                            {detalheDia.status === "completo" ? "Dia completo" :
-                             detalheDia.status === "incompleto" ? "Dia incompleto" :
-                             detalheDia.status === "positivo" ? "Horas positivas" : "Horas negativas"}
+                            {detalheDia.status === "completo"
+                              ? "Dia completo"
+                              : detalheDia.status === "incompleto"
+                              ? "Dia incompleto"
+                              : detalheDia.status === "positivo"
+                              ? "Horas positivas"
+                              : "Horas negativas"}
                           </span>
                         </div>
-
                         {/* Batidas */}
                         <div className="mb-4">
                           <h6 className="fw-bold mb-3">Batidas de Ponto</h6>
                           <div className="d-flex flex-wrap gap-2">
                             {detalheDia.batidas.map((hora, index) => (
-                              <div key={index} className="d-flex align-items-center">
-                                <span className="badge bg-secondary me-1">{index + 1}</span>
-                                <span className={`badge ${hora ? "bg-primary" : "bg-light text-muted border"} p-2`}>
+                              <div
+                                key={index}
+                                className="d-flex align-items-center"
+                              >
+                                <span className="badge bg-secondary me-1">
+                                  {index + 1}
+                                </span>
+                                <span
+                                  className={`badge ${
+                                    hora
+                                      ? "bg-primary"
+                                      : "bg-light text-muted border"
+                                  } p-2`}
+                                >
                                   {hora || "Não registrado"}
                                 </span>
                               </div>
                             ))}
                           </div>
                         </div>
-
                         {/* Resumo */}
                         <div className="row g-3">
                           <div className="col-6">
                             <div className="text-center p-2 bg-light rounded">
-                              <small className="text-muted d-block">Trabalhadas</small>
-                              <strong className="text-primary">{detalheDia.horasTrabalhadas}</strong>
+                              <small className="text-muted d-block">
+                                Trabalhadas
+                              </small>
+                              <strong className="text-primary">
+                                {detalheDia.horasTrabalhadas}
+                              </strong>
                             </div>
                           </div>
                           <div className="col-6">
@@ -275,96 +356,43 @@ function PontosBatidos() {
                             </div>
                           </div>
                           <div className="col-12">
-                            <div className={`text-center p-2 rounded ${
-                              detalheDia.bancoHoras.startsWith('+') ? 'bg-success bg-opacity-10 text-success' :
-                              detalheDia.bancoHoras.startsWith('-') ? 'bg-warning bg-opacity-10 text-warning' :
-                              'bg-light'
-                            }`}>
-                              <small className="text-muted d-block">Banco de Horas</small>
+                            <div
+                              className={`text-center p-2 rounded ${
+                                detalheDia.bancoHoras.startsWith("+")
+                                  ? "bg-success bg-opacity-10 text-success"
+                                  : detalheDia.bancoHoras.startsWith("-")
+                                  ? "bg-warning bg-opacity-10 text-warning"
+                                  : "bg-light"
+                              }`}
+                            >
+                              <small className="text-muted d-block">
+                                Banco de Horas
+                              </small>
                               <strong>{detalheDia.bancoHoras}</strong>
                             </div>
                           </div>
                         </div>
-
-                        {detalheDia.observacao && (
-                          <div className="mt-3 p-2 bg-info bg-opacity-10 rounded">
-                            <small className="text-muted">Observação:</small>
-                            <div className="small">{detalheDia.observacao}</div>
-                          </div>
-                        )}
-
-                        <button className="btn btn-outline-warning w-100 mt-3 btn-sm">
-                          Incluir Solicitação
-                        </button>
+                        
                       </>
                     ) : (
                       <div className="text-center py-5">
                         <Clock size={48} className="text-muted mb-3" />
-                        <p className="text-muted">Nenhum registro para este dia.</p>
-                        <small className="text-muted">Selecione uma data com registros</small>
+                        <p className="text-muted">
+                          Nenhum registro para este dia.
+                        </p>
+                        <small className="text-muted">
+                          Selecione uma data com registros
+                        </small>
                       </div>
                     )}
                   </div>
                 </div>
               ) : (
-                /* Resumo do Mês */
                 <div className="card border-0 shadow-sm h-100">
-                  <div className="card-header bg-white border-0">
-                    <h5 className="fw-bold mb-0 d-flex align-items-center">
-                      <BarChart3 size={18} className="me-2" />
-                      Resumo do Mês - Setembro/2025
-                    </h5>
-                  </div>
                   <div className="card-body">
-                    <div className="row g-3">
-                      {/* Métricas principais */}
-                      <div className="col-6">
-                        <div className="text-center p-3 bg-primary bg-opacity-10 rounded">
-                          <small className="text-muted d-block">Trabalhadas</small>
-                          <strong className="text-primary fs-5">{resumoMes.horasTrabalhadas}</strong>
-                        </div>
-                      </div>
-                      <div className="col-6">
-                        <div className="text-center p-3 bg-light rounded">
-                          <small className="text-muted d-block">Previstas</small>
-                          <strong className="fs-5">{resumoMes.horasPrevistas}</strong>
-                        </div>
-                      </div>
-                      
-                      {/* Banco de Horas */}
-                      <div className="col-12">
-                        <div className={`text-center p-3 rounded ${
-                          resumoMes.bancoHoras.startsWith('+') ? 'bg-success text-white' :
-                          resumoMes.bancoHoras.startsWith('-') ? 'bg-warning text-dark' :
-                          'bg-secondary text-white'
-                        }`}>
-                          <small className="opacity-90 d-block">Saldo do Mês</small>
-                          <strong className="fs-4">{resumoMes.bancoHoras}</strong>
-                        </div>
-                      </div>
-
-                      {/* Detalhes */}
-                      <div className="col-12">
-                        <div className="row g-2">
-                          <div className="col-6">
-                            <small className="text-muted d-block">Dias trabalhados</small>
-                            <strong>{resumoMes.diasTrabalhados}/{resumoMes.diasUteis}</strong>
-                          </div>
-                          <div className="col-6">
-                            <small className="text-muted d-block">Percentual</small>
-                            <strong>{resumoMes.percentual}</strong>
-                          </div>
-                          <div className="col-6">
-                            <small className="text-muted d-block">Horas positivas</small>
-                            <strong className="text-success">{resumoMes.horasPositivas}</strong>
-                          </div>
-                          <div className="col-6">
-                            <small className="text-muted d-block">Horas negativas</small>
-                            <strong className="text-warning">{resumoMes.horasNegativas}</strong>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <p className="text-muted text-center">
+                      📊 Resumo do mês ainda será implementado com dados reais
+                    </p>
                   </div>
                 </div>
               )}
@@ -380,7 +408,10 @@ function PontosBatidos() {
             >
               {baixando ? (
                 <>
-                  <div className="spinner-border spinner-border-sm me-2" role="status">
+                  <div
+                    className="spinner-border spinner-border-sm me-2"
+                    role="status"
+                  >
                     <span className="visually-hidden">Baixando...</span>
                   </div>
                   Gerando Relatório...
@@ -392,13 +423,12 @@ function PontosBatidos() {
                 </>
               )}
             </button>
-            <small className="d-block text-muted mt-2">
-              Relatório em PDF com todos os dados do mês
-            </small>
           </div>
         </div>
       </div>
     </div>
+    
+
   );
 }
 

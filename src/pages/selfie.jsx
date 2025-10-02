@@ -1,7 +1,8 @@
 import React, { useRef, useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
+import { http, getToken } from "../services/http";
 import { Camera, RefreshCcw, Check, ArrowLeft, Video, VideoOff, Loader } from "lucide-react";
-
+console.log("Token atual:", getToken());
 function Selfie() {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
@@ -85,11 +86,41 @@ function Selfie() {
     setIsCapturing(true);
   };
 
-  const confirmar = async () => {
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 500));
-    navigate("/confirmacao", { state: { selfie: foto, tipo } });
-  };
+  
+
+const confirmar = async () => {
+  if (!foto) return;
+
+  setIsLoading(true);
+  try {
+    // Converter base64 para blob
+    const res = await fetch(foto);
+    const blob = await res.blob();
+
+    const formData = new FormData();
+    formData.append("imagem", blob, "selfie.jpg");
+
+    // descricao precisa ir na query string
+    const response = await http.post(`/batidas/?descricao=${tipo}`, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
+
+    console.log("✅ Ponto registrado:", response.data);
+
+    navigate("/confirmacao", {
+      state: { selfie: foto, tipo, result: response.data },
+    });
+  } catch (error) {
+    console.error("❌ Erro ao registrar ponto:", error);
+    alert("Erro ao registrar ponto: " + (error.response?.data?.detail || error.message));
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   const tentarNovamenteCamera = () => {
     setCameraError(false);

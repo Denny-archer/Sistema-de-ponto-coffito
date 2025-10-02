@@ -1,5 +1,8 @@
-// 📂 src/pages/Colaboradores.jsx (final sem Sidebar/Topbar duplicados)
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { listarUsuarios, createUsuario } from "../services/usuarios";
+import { listarDepartamentos } from "../services/departamentos";
+import { listarCargos } from "../services/cargos";
+
 import {
   User,
   Edit,
@@ -17,63 +20,16 @@ import {
 } from "lucide-react";
 
 function Colaboradores() {
-  const [colaboradores, setColaboradores] = useState([
-    {
-      id: 1,
-      nome: "João Silva",
-      email: "joao.silva@empresa.com",
-      telefone: "(11) 99999-9999",
-      departamento: "TI",
-      cargo: "Desenvolvedor Frontend",
-      status: "Ativo",
-      dataAdmissao: "15/03/2023",
-      ultimoPonto: "25/09/2025 08:05",
-      horasTrabalhadas: "156:30",
-    },
-    {
-      id: 2,
-      nome: "Maria Santos",
-      email: "maria.santos@empresa.com",
-      telefone: "(11) 98888-8888",
-      departamento: "RH",
-      cargo: "Analista de Recursos Humanos",
-      status: "Ativo",
-      dataAdmissao: "20/01/2022",
-      ultimoPonto: "25/09/2025 08:00",
-      horasTrabalhadas: "142:15",
-    },
-    {
-      id: 3,
-      nome: "Pedro Costa",
-      email: "pedro.costa@empresa.com",
-      telefone: "(11) 97777-7777",
-      departamento: "Vendas",
-      cargo: "Consultor Comercial",
-      status: "Inativo",
-      dataAdmissao: "10/08/2024",
-      ultimoPonto: "24/09/2025 17:30",
-      horasTrabalhadas: "128:45",
-    },
-    {
-      id: 4,
-      nome: "Ana Oliveira",
-      email: "ana.oliveira@empresa.com",
-      telefone: "(11) 96666-6666",
-      departamento: "Marketing",
-      cargo: "Designer Gráfico",
-      status: "Ativo",
-      dataAdmissao: "05/12/2023",
-      ultimoPonto: "25/09/2025 07:55",
-      horasTrabalhadas: "135:20",
-    },
-  ]);
-
+  const [colaboradores, setColaboradores] = useState([]);
+  const [departamentosApi, setDepartamentosApi] = useState([]);
+  const [cargosApi, setCargosApi] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("Todos");
   const [filterDepartamento, setFilterDepartamento] = useState("Todos");
   const [sortField, setSortField] = useState("nome");
   const [sortDirection, setSortDirection] = useState("asc");
+
   const [form, setForm] = useState({
     nome: "",
     email: "",
@@ -82,11 +38,38 @@ function Colaboradores() {
     cargo: "",
     status: "Ativo",
     dataAdmissao: "",
+    cpf: "",
+    password: "",
   });
 
-  // --- Helpers ---
-  const departamentos = [...new Set(colaboradores.map((c) => c.departamento))];
+  // 🔹 carregar departamentos e cargos
+ useEffect(() => {
+    async function carregarUsuarios() {
+      try {
+        const data = await listarUsuarios();
+        // ⚠️ transformar resposta do backend no formato esperado pela UI
+        const usuariosUI = data.map((u) => ({
+          id: u.id,
+          nome: u.nome,
+          email: u.email,
+          telefone: u.telefone ?? "", // se não vier no backend
+          departamento: u.departamento ?? "-",
+          cargo: u.cargo ?? "-",
+          status: u.status ? "Ativo" : "Inativo",
+          dataAdmissao: u.data_admissao,
+          ultimoPonto: "--/--/---- --:--", // placeholder
+          horasTrabalhadas: "00:00", // placeholder
+        }));
+        setColaboradores(usuariosUI);
+      } catch (error) {
+        console.error("Erro ao carregar usuários:", error);
+      }
+    }
 
+    carregarUsuarios();
+  }, []);
+
+  // --- Helpers ---
   const handleSort = (field) => {
     if (sortField === field) {
       setSortDirection(sortDirection === "asc" ? "desc" : "asc");
@@ -109,24 +92,56 @@ function Colaboradores() {
     }
   };
 
-  const handleSalvar = () => {
-    const novo = {
-      ...form,
-      id: Date.now(),
-      ultimoPonto: "--/--/---- --:--",
-      horasTrabalhadas: "00:00",
-    };
-    setColaboradores((prev) => [...prev, novo]);
-    setShowModal(false);
-    setForm({
-      nome: "",
-      email: "",
-      telefone: "",
-      departamento: "",
-      cargo: "",
-      status: "Ativo",
-      dataAdmissao: "",
-    });
+  const handleSalvar = async () => {
+    try {
+      const payload = {
+        nome: form.nome,
+        email: form.email,
+        telefone: form.telefone || null,
+        departamento: Number(form.departamento),
+        cargo: Number(form.cargo),
+        status: form.status === "Ativo",
+        cpf: form.cpf.replace(/\D/g, ""),
+        matricula: "MAT-" + Date.now(),
+        tipo_usuario: 1,
+        carga_horaria: "08:00:00",
+        password: form.password,
+        data_admissao: form.dataAdmissao,
+      };
+
+      const novoUsuario = await createUsuario(payload);
+
+      const colaboradorUI = {
+        ...form,
+        id: novoUsuario.id,
+        status: payload.status ? "Ativo" : "Inativo",
+        ultimoPonto: "--/--/---- --:--",
+        horasTrabalhadas: "00:00",
+      };
+
+      setColaboradores((prev) => [...prev, colaboradorUI]);
+      setShowModal(false);
+
+      setForm({
+        nome: "",
+        email: "",
+        telefone: "",
+        departamento: "",
+        cargo: "",
+        status: "Ativo",
+        dataAdmissao: "",
+        cpf: "",
+        password: "",
+      });
+
+      alert("✅ Colaborador cadastrado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      alert(
+        "❌ Erro ao salvar colaborador: " +
+          (error.response?.data?.detail || error.message)
+      );
+    }
   };
 
   // --- Filtro + Ordenação ---
@@ -134,16 +149,17 @@ function Colaboradores() {
     .filter((colab) => {
       const t = searchTerm.toLowerCase();
       return (
-        colab.nome.toLowerCase().includes(t) ||
-        colab.email.toLowerCase().includes(t) ||
-        colab.departamento.toLowerCase().includes(t) ||
-        colab.cargo.toLowerCase().includes(t)
+        colab.nome?.toLowerCase().includes(t) ||
+        colab.email?.toLowerCase().includes(t) ||
+        colab.departamento?.toString().toLowerCase().includes(t) ||
+        colab.cargo?.toString().toLowerCase().includes(t)
       );
     })
     .filter((colab) => filterStatus === "Todos" || colab.status === filterStatus)
     .filter(
       (colab) =>
-        filterDepartamento === "Todos" || colab.departamento === filterDepartamento
+        filterDepartamento === "Todos" ||
+        colab.departamento?.toString() === filterDepartamento
     )
     .sort((a, b) => {
       const aValue = `${a[sortField] ?? ""}`.toLowerCase();
@@ -153,7 +169,6 @@ function Colaboradores() {
         : bValue.localeCompare(aValue);
     });
 
-  // --- Subcomponentes ---
   const SortableHeader = ({ field, children }) => (
     <th className="cursor-pointer user-select-none" onClick={() => handleSort(field)}>
       <div className="d-flex align-items-center gap-1">
@@ -167,7 +182,6 @@ function Colaboradores() {
 
   return (
     <div className="dashboard-container">
-      {/* Sidebar/Topbar vêm do AppLayoutGestor */}
       <main className="main-content">
         <div className="container-fluid py-3 py-md-4 px-3 px-md-4">
           {/* Header */}
@@ -186,64 +200,6 @@ function Colaboradores() {
             >
               <Plus size={18} className="me-2" /> Adicionar Colaborador
             </button>
-          </div>
-
-          {/* Filtros */}
-          <div className="card shadow-sm mb-4">
-            <div className="card-body">
-              <div className="row g-3">
-                <div className="col-12 col-md-6 col-lg-4">
-                  <div className="search-box position-relative">
-                    <Search
-                      size={18}
-                      className="position-absolute top-50 start-3 translate-middle-y text-muted"
-                    />
-                    <input
-                      type="text"
-                      className="form-control ps-5"
-                      placeholder="Pesquisar colaboradores..."
-                      value={searchTerm}
-                      onChange={(e) => setSearchTerm(e.target.value)}
-                    />
-                  </div>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
-                  <select
-                    className="form-select"
-                    value={filterStatus}
-                    onChange={(e) => setFilterStatus(e.target.value)}
-                  >
-                    <option value="Todos">Todos os status</option>
-                    <option value="Ativo">Ativos</option>
-                    <option value="Inativo">Inativos</option>
-                  </select>
-                </div>
-                <div className="col-6 col-md-3 col-lg-2">
-                  <select
-                    className="form-select"
-                    value={filterDepartamento}
-                    onChange={(e) => setFilterDepartamento(e.target.value)}
-                  >
-                    <option value="Todos">Todos os deptos.</option>
-                    {departamentos.map((depto) => (
-                      <option key={depto} value={depto}>
-                        {depto}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="col-12 col-md-6 col-lg-4">
-                  <div className="d-flex gap-2">
-                    <button className="btn btn-outline-secondary d-flex align-items-center">
-                      <Filter size={16} className="me-2" /> Mais Filtros
-                    </button>
-                    <button className="btn btn-outline-secondary d-flex align-items-center">
-                      <Download size={16} className="me-2" /> Exportar
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           {/* Tabela */}
@@ -294,15 +250,7 @@ function Colaboradores() {
                           <small className="text-muted">{colab.dataAdmissao}</small>
                         </td>
                         <td>
-                          <small
-                            className={
-                              colab.ultimoPonto.includes("--")
-                                ? "text-muted"
-                                : "text-success"
-                            }
-                          >
-                            {colab.ultimoPonto}
-                          </small>
+                          <small className="text-muted">{colab.ultimoPonto}</small>
                         </td>
                         <td>
                           <span className="fw-semibold">{colab.horasTrabalhadas}</span>
@@ -310,9 +258,7 @@ function Colaboradores() {
                         <td>
                           <span
                             className={`badge d-inline-flex align-items-center ${
-                              colab.status === "Ativo"
-                                ? "bg-success"
-                                : "bg-secondary"
+                              colab.status === "Ativo" ? "bg-success" : "bg-secondary"
                             }`}
                           >
                             {getStatusIcon(colab.status)}
@@ -321,27 +267,17 @@ function Colaboradores() {
                         </td>
                         <td>
                           <div className="d-flex justify-content-center gap-1">
-                            <button
-                              className="btn btn-outline-primary btn-sm"
-                              title="Ver detalhes"
-                            >
+                            <button className="btn btn-outline-primary btn-sm">
                               <Eye size={14} />
                             </button>
-                            <button
-                              className="btn btn-outline-warning btn-sm"
-                              title="Editar"
-                            >
+                            <button className="btn btn-outline-warning btn-sm">
                               <Edit size={14} />
                             </button>
-                            <button
-                              className="btn btn-outline-dark btn-sm"
-                              title="Histórico de pontos"
-                            >
+                            <button className="btn btn-outline-dark btn-sm">
                               <Clock size={14} />
                             </button>
                             <button
                               className="btn btn-outline-danger btn-sm"
-                              title="Excluir"
                               onClick={() => handleExcluir(colab.id)}
                             >
                               <Trash2 size={14} />
@@ -353,7 +289,6 @@ function Colaboradores() {
                   </tbody>
                 </table>
               </div>
-
               {filteredColaboradores.length === 0 && (
                 <div className="text-center py-5">
                   <User size={48} className="text-muted mb-3" />
@@ -366,7 +301,7 @@ function Colaboradores() {
             </div>
           </div>
 
-          {/* Modal Adicionar Colaborador */}
+          {/* Modal */}
           {showModal && (
             <div
               className="modal fade show d-block"
@@ -382,7 +317,7 @@ function Colaboradores() {
                   <div className="modal-body">
                     <div className="row g-3">
                       <div className="col-12 col-md-6">
-                        <label className="form-label">Nome Completo *</label>
+                        <label className="form-label">Nome *</label>
                         <input
                           type="text"
                           className="form-control"
@@ -417,6 +352,8 @@ function Colaboradores() {
                           onChange={(e) => setForm({ ...form, dataAdmissao: e.target.value })}
                         />
                       </div>
+
+                      {/* Select Departamento */}
                       <div className="col-12 col-md-6">
                         <label className="form-label">Departamento *</label>
                         <select
@@ -425,22 +362,52 @@ function Colaboradores() {
                           onChange={(e) => setForm({ ...form, departamento: e.target.value })}
                         >
                           <option value="">Selecione...</option>
-                          {departamentos.map((depto) => (
-                            <option key={depto} value={depto}>
-                              {depto}
+                          {departamentosApi.map((depto) => (
+                            <option key={depto.id} value={depto.id}>
+                              {depto.nome}
                             </option>
                           ))}
                         </select>
                       </div>
+
+                      {/* Select Cargo */}
                       <div className="col-12 col-md-6">
                         <label className="form-label">Cargo *</label>
+                        <select
+                          className="form-select"
+                          value={form.cargo}
+                          onChange={(e) => setForm({ ...form, cargo: e.target.value })}
+                        >
+                          <option value="">Selecione...</option>
+                          {cargosApi.map((cargo) => (
+                            <option key={cargo.id} value={cargo.id}>
+                              {cargo.nome}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">CPF *</label>
                         <input
                           type="text"
                           className="form-control"
-                          value={form.cargo}
-                          onChange={(e) => setForm({ ...form, cargo: e.target.value })}
+                          value={form.cpf}
+                          onChange={(e) => setForm({ ...form, cpf: e.target.value })}
+                          placeholder="Digite o CPF (somente números)"
                         />
                       </div>
+
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">Senha inicial *</label>
+                        <input
+                          type="password"
+                          className="form-control"
+                          value={form.password}
+                          onChange={(e) => setForm({ ...form, password: e.target.value })}
+                        />
+                      </div>
+
                       <div className="col-12 col-md-6">
                         <label className="form-label">Status</label>
                         <select
@@ -455,7 +422,10 @@ function Colaboradores() {
                     </div>
                   </div>
                   <div className="modal-footer">
-                    <button className="btn btn-outline-secondary" onClick={() => setShowModal(false)}>
+                    <button
+                      className="btn btn-outline-secondary"
+                      onClick={() => setShowModal(false)}
+                    >
                       Cancelar
                     </button>
                     <button
