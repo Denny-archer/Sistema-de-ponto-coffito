@@ -1,23 +1,24 @@
-import React from "react";
+// 📂 src/components/AppLayoutGestor.jsx
+import React, { useState } from "react";
 import { Outlet } from "react-router-dom";
 import Sidebar from "./Sidebar";
 import Topbar from "./Topbar";
 
 export default function AppLayoutGestor() {
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
   return (
-    <div className="d-flex" style={{ minHeight: "100vh" }}>
+    <div className={`app-shell ${sidebarOpen ? "sidebar-open" : ""}`}>
       {/* Sidebar */}
-      <aside className="border-end" style={{ width: 260 }}>
-        <Sidebar />
-      </aside>
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Conteúdo */}
-      <main className="flex-grow-1 d-flex flex-column">
-        <Topbar />
-        <div className="p-3">
+      <div className="content-area">
+        <Topbar setSidebarOpen={setSidebarOpen} />
+        <main className="main-content">
           <Outlet />
-        </div>
-      </main>
+        </main>
+      </div>
     </div>
   );
 }

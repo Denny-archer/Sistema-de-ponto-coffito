@@ -1,66 +1,116 @@
-// 📂 src/pages/DashboardGestor.jsx
 import React, { useEffect, useState } from "react";
-import Sidebar from "../components/Sidebar";
-import Topbar from "../components/Topbar";
 import { 
   CheckCircle, 
   XCircle, 
   Clock, 
   FileText, 
   User, 
-  Download, 
-  Filter, 
-  MoreVertical, 
-  BarChart3 
+  MoreVertical 
 } from "lucide-react";
+import { http } from "../services/http";
+
+// 🔹 Importando Recharts
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 function DashboardGestor() {
-  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [usuarios, setUsuarios] = useState([]);
+  const [batidas, setBatidas] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    document.body.classList.add("dashboard-page");
-    return () => document.body.classList.remove("dashboard-page");
+    async function carregarDados() {
+      try {
+        const { data: dataUsuarios } = await http.get("/usuarios/?skip=0&sort=false");
+        setUsuarios(dataUsuarios.usuarios || []);
+
+        const { data: dataBatidas } = await http.get("/batidas/?skip=0");
+        setBatidas(dataBatidas.batidas || []);
+
+        setLoading(false);
+      } catch (err) {
+        console.error("Erro ao carregar dados do dashboard:", err);
+        setUsuarios([]);
+        setBatidas([]);
+        setLoading(false);
+      }
+    }
+
+    carregarDados();
   }, []);
 
-  // KPIs mockados
+  // 🔹 Determinar status
+  const getStatus = (batidasUsuario) => {
+    if (!batidasUsuario.length) return "ausente";
+    const ultima = batidasUsuario[batidasUsuario.length - 1];
+    if (ultima.descricao?.toLowerCase().includes("entrada")) return "trabalhando";
+    if (ultima.descricao?.toLowerCase().includes("almoco")) return "almoco";
+    if (ultima.descricao?.toLowerCase().includes("saida")) return "finalizado";
+    return "trabalhando";
+  };
+
+  // 🔹 Montar colaboradores
+  const colaboradoresHoje = usuarios.map((u) => {
+    const bUser = batidas.filter((b) => b.id_usuario === u.id);
+    const entrada = bUser.find((b) => b.descricao?.toLowerCase().includes("entrada"))?.data_batida || "--:--";
+    const almoco = bUser.find((b) => b.descricao?.toLowerCase().includes("almoco"))?.data_batida || "--:--";
+    const saida = bUser.find((b) => b.descricao?.toLowerCase().includes("saida"))?.data_batida || "--:--";
+
+    return {
+      id: u.id,
+      nome: u.nome,
+      departamento: u.departamento || "Não informado",
+      entrada,
+      saidaAlmoco: almoco,
+      saida,
+      horasExtras: "00:00",
+      status: getStatus(bUser),
+    };
+  });
+
+  // 🔹 KPIs
+  const totalUsuarios = usuarios.length;
+  const ativosHoje = colaboradoresHoje.filter((c) => c.status !== "ausente").length;
+  const naoRegistraram = totalUsuarios - ativosHoje;
+  const horasExtrasHoje = colaboradoresHoje.filter((c) => c.horasExtras !== "00:00").length;
+
   const kpis = [
-    {  value: 12, total: 15, variant: "success", icon: <CheckCircle size={24} />, change: "+2", description: "Colaboradores ativos hoje" },
-    {  value: 3, total: 15, variant: "danger", icon: <XCircle size={24} />, change: "+1", description: "Não registraram ponto" },
-    { label: "Horas Extras", value: 5, variant: "warning", icon: <Clock size={24} />, change: "-1", description: "Com horas extras hoje" },
-    { label: "Justificativas", value: 2, variant: "info", icon: <FileText size={24} />, change: "+0", description: "Pendentes de análise" },
+    { value: ativosHoje, total: totalUsuarios, variant: "success", icon: <CheckCircle size={24} />, description: "Colaboradores ativos hoje" },
+    { value: naoRegistraram, total: totalUsuarios, variant: "danger", icon: <XCircle size={24} />, description: "Não registraram ponto" },
+    { value: horasExtrasHoje, variant: "warning", icon: <Clock size={24} />, description: "Com horas extras hoje" },
+    { value: 0, variant: "info", icon: <FileText size={24} />, description: "Justificativas pendentes" },
   ];
 
-  const colaboradores = [
-    { id: 1, nome: "João Silva", entrada: "08:05", saida: "12:00", saidaAlmoco: "13:00", status: "trabalhando", departamento: "TI", horasExtras: "00:30" },
-    { id: 2, nome: "Maria Santos", entrada: "--:--", saida: "--:--", saidaAlmoco: "--:--", status: "ausente", departamento: "RH", horasExtras: "00:00" },
-    { id: 3, nome: "Pedro Costa", entrada: "07:45", saida: "17:30", saidaAlmoco: "12:00", status: "finalizado", departamento: "Vendas", horasExtras: "01:15" },
-    { id: 4, nome: "Ana Oliveira", entrada: "08:00", saida: "12:00", saidaAlmoco: "13:00", status: "almoco", departamento: "Marketing", horasExtras: "00:00" },
-  ];
-
+  // 🔹 Badge
   const getStatusBadge = (status) => {
     const config = {
       trabalhando: { class: "bg-success", text: "Trabalhando" },
       ausente: { class: "bg-danger", text: "Ausente" },
       finalizado: { class: "bg-info", text: "Finalizado" },
-      almoco: { class: "bg-warning", text: "Almoço" }
+      almoco: { class: "bg-warning", text: "Almoço" },
     };
     const cfg = config[status] || config.ausente;
     return <span className={`badge ${cfg.class}`}>{cfg.text}</span>;
   };
 
+  // 🔹 Dados para o gráfico
+  const chartData = [
+    { name: "Trabalhando", value: colaboradoresHoje.filter(c => c.status === "trabalhando").length },
+    { name: "Almoço", value: colaboradoresHoje.filter(c => c.status === "almoco").length },
+    { name: "Finalizado", value: colaboradoresHoje.filter(c => c.status === "finalizado").length },
+    { name: "Ausente", value: colaboradoresHoje.filter(c => c.status === "ausente").length },
+  ];
+  const COLORS = ["#4caf50", "#ff9800", "#2196f3", "#f44336"];
+
+  if (loading) return <div className="p-4">Carregando dados...</div>;
+
   return (
     <div className="dashboard-container">
-      <Sidebar />
       <main className="main-content">
-        <Topbar setSidebarOpen={setSidebarOpen} />
-
-        {/* KPIs Section */}
+        {/* KPIs */}
         <section className="kpis-section">
           <div className="section-header">
             <h2>Visão Geral - Hoje</h2>
-            
           </div>
-
           <div className="kpis-grid">
             {kpis.map((kpi, idx) => (
               <div key={idx} className={`kpi-card kpi-${kpi.variant}`}>
@@ -69,66 +119,50 @@ function DashboardGestor() {
                   <div className="kpi-value">
                     {kpi.value}{kpi.total && <span>/{kpi.total}</span>}
                   </div>
-                  <div className="kpi-label">{kpi.label}</div>
                   <div className="kpi-description">{kpi.description}</div>
-                </div>
-                <div className={`kpi-change change-${kpi.change.startsWith('+') ? 'positive' : 'negative'}`}>
-                  {kpi.change}
                 </div>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Charts and Justifications Section */}
+        {/* Gráfico de Presença */}
         <section className="content-grid">
-          {/* Gráfico */}
           <div className="chart-card">
-            <div className="card-header">
+            <div className="card-header d-flex justify-content-between align-items-center">
               <h3>Distribuição de Presença</h3>
-              <button className="icon-btn">
-                <MoreVertical size={16} />
-              </button>
+              <button className="icon-btn"><MoreVertical size={16} /></button>
             </div>
-            <div className="chart-placeholder">
-              <div className="chart-content">
-                <BarChart3 size={48} className="text-muted" />
-                <p>Gráfico de distribuição</p>
-                <small className="text-muted">Visualização interativa dos dados</small>
-              </div>
-            </div>
-          </div>
-
-          {/* Justificativas */}
-          <div className="justifications-card">
-            <div className="card-header">
-              <h3>Justificativas Pendentes</h3>
-              <span className="badge bg-danger">2</span>
-            </div>
-            <div className="justifications-list">
-              <div className="justification-item">
-                <div className="justification-info">
-                  <div className="user-name">João Silva</div>
-                  <div className="justification-details">
-                    <span>Atraso de 15min</span>
-                    <span>25/09/2025</span>
-                  </div>
-                </div>
-                <div className="justification-actions">
-                  <button className="btn btn-success btn-sm">Aprovar</button>
-                  <button className="btn btn-outline-danger btn-sm">Rejeitar</button>
-                </div>
-              </div>
+            <div style={{ width: "100%", height: 300 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={chartData}
+                    cx="50%"
+                    cy="50%"
+                    labelLine={false}
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, value }) => `${name}: ${value}`}
+                  >
+                    {chartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
             </div>
           </div>
         </section>
 
-        {/* Tabela de Colaboradores */}
+        {/* Tabela */}
         <section className="table-section">
           <div className="card">
             <div className="card-header ">
               <h3>Colaboradores - Hoje</h3>
-              
             </div>
             <div className="card-body">
               <div className="table-responsive">
@@ -146,41 +180,23 @@ function DashboardGestor() {
                     </tr>
                   </thead>
                   <tbody>
-                    {colaboradores.map((colab) => (
+                    {colaboradoresHoje.map((colab) => (
                       <tr key={colab.id}>
                         <td>
-                          <div className="user-cell">
-                            <div className="user-avatar-sm">
-                              <User size={14} />
-                            </div>
+                          <div className="user-cell d-flex align-items-center gap-2">
+                            <User size={14} />
                             {colab.nome}
                           </div>
                         </td>
                         <td>{colab.departamento}</td>
-                        <td>
-                          <span className={colab.entrada === '--:--' ? 'text-muted' : 'text-success'}>
-                            {colab.entrada}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={colab.saidaAlmoco === '--:--' ? 'text-muted' : 'text-warning'}>
-                            {colab.saidaAlmoco}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={colab.saida === '--:--' ? 'text-muted' : 'text-info'}>
-                            {colab.saida}
-                          </span>
-                        </td>
-                        <td>
-                          <span className={colab.horasExtras !== '00:00' ? 'text-warning fw-bold' : 'text-muted'}>
-                            {colab.horasExtras}
-                          </span>
+                        <td>{colab.entrada}</td>
+                        <td>{colab.saidaAlmoco}</td>
+                        <td>{colab.saida}</td>
+                        <td className={colab.horasExtras !== "00:00" ? "text-warning fw-bold" : "text-muted"}>
+                          {colab.horasExtras}
                         </td>
                         <td>{getStatusBadge(colab.status)}</td>
-                        <td>
-                          <button className="btn btn-outline-dark btn-sm">Histórico</button>
-                        </td>
+                        <td><button className="btn btn-outline-dark btn-sm">Histórico</button></td>
                       </tr>
                     ))}
                   </tbody>
