@@ -1,11 +1,13 @@
 // 📂 src/components/Sidebar.jsx
 import React, { useState, useEffect } from "react";
-import { NavLink } from "react-router-dom"; // ✅ Import do react-router-dom
-import { Users, FileText, BarChart3 } from "lucide-react";
+import { NavLink } from "react-router-dom";
+import { Users, FileText, BarChart3, LogOut, User } from "lucide-react";
+import useAuth from "../hooks/useAuth";
 
 function Sidebar() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const { user, signOut } = useAuth();
 
   useEffect(() => {
     const handleResize = () => {
@@ -22,17 +24,35 @@ function Sidebar() {
   return (
     <>
       {sidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setSidebarOpen(false)} />
+        <div
+          className="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
       )}
       <aside className={`sidebar ${sidebarOpen ? "open" : ""}`}>
-        <div className="sidebar-header">
-          <div className="logo">
-            <BarChart3 size={28} className="text-primary" />
-            <span className="logo-text">PontoPro</span>
+        {/* Header da sidebar */}
+        <div className="sidebar-header d-flex align-items-center justify-content-between px-3 py-2">
+          <div className="logo d-flex align-items-center gap-2">
+            <BarChart3 size={24} className="text-primary" />
+            <span className="logo-text fw-bold">PontoPro</span>
           </div>
         </div>
 
-        <nav className="sidebar-nav">
+        {/* Info do usuário */}
+        <div className="sidebar-user px-3 py-3 border-bottom">
+          <div className="d-flex align-items-center gap-2">
+            <div className="user-avatar bg-light rounded-circle d-flex align-items-center justify-content-center" style={{width: 32, height: 32}}>
+              <User size={18} />
+            </div>
+            <div>
+              <div className="fw-semibold small">{user?.name || "Usuário"}</div>
+              <div className="text-muted small">{user?.email}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Navegação */}
+        <nav className="sidebar-nav mt-3">
           <NavLink
             to="/gestor"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
@@ -49,7 +69,6 @@ function Sidebar() {
             <span>Cadastros</span>
           </NavLink>
 
-          {/* ✅ Folha leva direto para /folha */}
           <NavLink
             to="/folha"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
@@ -58,6 +77,17 @@ function Sidebar() {
             <span>Folha</span>
           </NavLink>
         </nav>
+
+        {/* Footer com logout */}
+        <div className="mt-auto px-3 py-3 border-top">
+          <button
+            className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 w-100"
+            onClick={signOut}
+          >
+            <LogOut size={18} />
+            <span>Sair</span>
+          </button>
+        </div>
       </aside>
     </>
   );

@@ -1,5 +1,14 @@
-// 📂 src/App.jsx
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+
+// Auth
+import AuthProvider from "./context/AuthProvider";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+// Layouts
+import AppLayoutGestor from "./components/AppLayoutGestor"; // gestor
+// colaborador pode ser sem layout, direto
+
+// Páginas
 import Login from "./pages/login";
 import Home from "./pages/home";
 import Ponto from "./pages/ponto";
@@ -8,25 +17,40 @@ import Confirmacao from "./pages/confirmacao";
 import PontosBatidos from "./pages/pontosBatidos";
 import DashboardGestor from "./pages/dashbordGestor";
 import Colaboradores from "./pages/colaboradores";
-import Folha from "./pages/folha"; // ✅ import da nova tela
+import Folha from "./pages/folha";
 
-function App() {
+export default function App() {
   return (
     <Router>
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="/home" element={<Home />} />
-        <Route path="/ponto" element={<Ponto />} />
-        <Route path="/selfie" element={<Selfie />} />
-        <Route path="/confirmacao" element={<Confirmacao />} />
-        <Route path="/pontos" element={<PontosBatidos />} />
-        <Route path="/gestor" element={<DashboardGestor />} />
-        <Route path="/colaboradores" element={<Colaboradores />} />
-        <Route path="/folha" element={<Folha />} /> {/* ✅ nova rota adicionada */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
+      <AuthProvider>
+        <Routes>
+          {/* públicas */}
+          <Route path="/login" element={<Login />} />
+
+          {/* privadas */}
+          <Route element={<ProtectedRoute />}>
+            {/* fluxo colaborador (sem Sidebar/Topbar) */}
+            <Route path="/home" element={<Home />} />
+            <Route path="/ponto" element={<Ponto />} />
+            <Route path="/selfie" element={<Selfie />} />
+            <Route path="/confirmacao" element={<Confirmacao />} />
+            <Route path="/pontos" element={<PontosBatidos />} />
+
+            {/* fluxo gestor (com layout completo) */}
+            <Route element={<AppLayoutGestor />}>
+              <Route path="/gestor" element={<DashboardGestor />} />
+              <Route path="/colaboradores" element={<Colaboradores />} />
+              <Route path="/folha" element={<Folha />} />
+            </Route>
+
+            {/* atalho raiz */}
+            <Route path="/" element={<Navigate to="/home" replace />} />
+          </Route>
+
+          {/* fallback */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </AuthProvider>
     </Router>
   );
 }
-
-export default App;

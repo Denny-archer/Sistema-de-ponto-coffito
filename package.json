@@ -13,6 +13,7 @@
     "@fullcalendar/daygrid": "^6.1.19",
     "@fullcalendar/interaction": "^6.1.19",
     "@fullcalendar/react": "^6.1.19",
+    "axios": "^1.12.2",
     "bootstrap": "^5.3.8",
     "jspdf": "^3.0.3",
     "jspdf-autotable": "^5.0.2",
