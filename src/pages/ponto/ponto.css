@@ -1,0 +1,45 @@
+
+/*ajustes ponto.jsx*/
+/* Adicione ao seu CSS global ou module */
+.hover-lift {
+  transition: all 0.3s ease;
+}
+
+.hover-lift:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 1rem 2rem rgba(0, 0, 0, 0.15) !important;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
+.transition-all {
+  transition: all 0.3s ease;
+}
+
+.min-vh-100 {
+  min-height: 100vh;
+}
+
+/* Melhorar acessibilidade para foco */
+.card:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* Responsividade para textos */
+@media (max-width: 576px) {
+  .card-body {
+    padding: 1.5rem 1rem;
+  }
+  
+  .fs-5 {
+    font-size: 1rem !important;
+  }
+}
+
+/* Animações suaves */
+.spinner-border {
+  animation-duration: 0.75s;
+}

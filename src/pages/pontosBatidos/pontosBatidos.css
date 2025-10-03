@@ -1,0 +1,69 @@
+
+/*ajustes pontosBatidos*/
+
+/* Adicione ao seu CSS global */
+.react-calendar {
+  width: 100% !important;
+  border: none !important;
+  font-family: inherit !important;
+}
+
+.react-calendar__tile--active {
+  background: #0d6efd !important;
+  color: white !important;
+}
+
+.react-calendar__tile--now {
+  background: #f8f9fa !important;
+  color: #0d6efd !important;
+  font-weight: bold;
+}
+
+.react-calendar__tile.has-registry {
+  font-weight: 600;
+}
+
+.dot-indicator {
+  transition: all 0.3s ease;
+}
+
+/* Melhorias de responsividade */
+@media (max-width: 768px) {
+  .react-calendar__month-view__weekdays {
+    font-size: 0.7rem;
+  }
+  
+  .react-calendar__tile {
+    padding: 0.5rem 0.2rem !important;
+    font-size: 0.8rem;
+  }
+  
+  .btn-group-sm .btn {
+    font-size: 0.75rem;
+    padding: 0.25rem 0.5rem;
+  }
+}
+
+/* Animações suaves */
+.card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+}
+
+.btn {
+  transition: all 0.3s ease;
+}
+
+/* Acessibilidade */
+.react-calendar__tile:focus {
+  outline: 2px solid #0d6efd;
+  outline-offset: 2px;
+}
+
+/* Customização dos badges */
+.badge {
+  font-size: 0.8em;
+}

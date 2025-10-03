@@ -1,0 +1,285 @@
+
+/* Folha de Pagamento Styles */
+.avatar-sm {
+  width: 40px;
+  height: 40px;
+}
+
+.search-box input:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Table responsive improvements */
+@media (max-width: 1200px) {
+  .table-responsive {
+    font-size: 0.875rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .table-responsive {
+    font-size: 0.8rem;
+  }
+  
+  .btn-sm {
+    padding: 0.25rem 0.5rem;
+  }
+  
+  .avatar-sm {
+    width: 32px;
+    height: 32px;
+  }
+  
+  .card-body.p-3 {
+    padding: 1rem !important;
+  }
+}
+
+@media (max-width: 576px) {
+  .d-flex.gap-1 .btn {
+    padding: 0.25rem;
+  }
+  
+  .d-flex.gap-1 .btn svg {
+    margin: 0;
+  }
+  
+  .row.g-3 .col-6 {
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* Hover effects */
+.table-hover tbody tr:hover {
+  background-color: rgba(0, 0, 0, 0.02);
+}
+
+.btn-outline-primary:hover {
+  transform: translateY(-1px);
+}
+
+/* Status badges improvements */
+.badge {
+  font-size: 0.75em;
+  font-weight: 500;
+  padding: 0.35em 0.65em;
+}
+
+/* Currency formatting */
+.fw-semibold {
+  font-weight: 600;
+}
+
+/* Statistics cards hover */
+.card:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s ease;
+}
+
+/* Form enhancements */
+.form-label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.form-control:focus,
+.form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Custom scrollbar for table */
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 4px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: #a8a8a8;
+}
+
+
+
+/* 🔔 Icon buttons */
+.icon-btn {
+  position: relative;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 6px;
+  padding: 0.4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+}
+
+.icon-btn:hover {
+  background: var(--hover-bg, #f3f4f6);
+}
+
+.notification-badge {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  background: #ef4444;
+  color: #fff;
+  border-radius: 50%;
+  font-size: 0.65rem;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 👤 User menu */
+.user-menu {
+  position: relative;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--avatar-bg, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color, #374151);
+}
+
+.user-info span {
+  font-size: 0.9rem;
+}
+
+.user-info .text-muted {
+  font-size: 0.75rem;
+}
+
+/* Dropdown */
+.dropdown-menu {
+  position: absolute;
+  right: 0;
+  top: 120%;
+  background: var(--dropdown-bg, #ffffff);
+  border: 1px solid var(--border-color, #e5e7eb);
+  border-radius: 6px;
+  min-width: 160px;
+  padding: 0.25rem 0;
+  z-index: 2000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.dropdown-item {
+  width: 100%;
+  padding: 0.5rem 1rem;
+  text-align: left;
+  background: transparent;
+  border: none;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-color, #374151);
+  transition: background 0.2s;
+}
+
+.dropdown-item:hover {
+  background: var(--hover-bg, #f3f4f6);
+}
+
+.dropdown-item.text-danger {
+  color: #dc2626;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* 📱 Responsividade */
+@media (max-width: 768px) {
+  .search-bar {
+    display: none;
+  }
+  .breadcrumb {
+    display: none;
+  }
+  .user-info .d-none.d-md-block {
+    display: none !important;
+  }
+}
+
+/* 🌙 Dark mode */
+body[data-theme="dark"] {
+  --topbar-bg: #1f2937;
+  --dropdown-bg: #111827;
+  --input-bg: #374151;
+  --hover-bg: #374151;
+  --avatar-bg: #374151;
+  --text-color: #f9fafb;
+  --text-muted: #9ca3af;
+  --border-color: #374151;
+}
+
+body[data-theme="dark"] .notification-badge {
+  background: #f87171;
+}
+
+.user-menu {
+  position: relative;
+  cursor: pointer;
+}
+
+.user-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #f0f0f0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: .5rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,.1);
+  margin-top: 8px;
+  z-index: 1000;
+  padding: .5rem 0;
+}
+
+.dropdown-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: .5rem 1rem;
+  font-size: .9rem;
+  display: flex;
+  align-items: center;
+}
+
+.dropdown-item:hover {
+  background: #f8f9fa;
+}
+

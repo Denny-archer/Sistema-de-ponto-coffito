@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { listarUsuarios, createUsuario } from "../services/usuarios";
-import { listarDepartamentos } from "../services/departamentos";
-import { listarCargos } from "../services/cargos";
+import { listarUsuarios, createUsuario } from "../../services/usuarios";
+import { listarDepartamentos } from "../../services/departamentos";
+import { listarCargos } from "../../services/cargos";
 
 import {
   User,
@@ -31,43 +31,68 @@ function Colaboradores() {
   const [sortDirection, setSortDirection] = useState("asc");
 
   const [form, setForm] = useState({
-    nome: "",
-    email: "",
-    telefone: "",
-    departamento: "",
-    cargo: "",
-    status: "Ativo",
-    dataAdmissao: "",
-    cpf: "",
-    password: "",
-  });
+  nome: "",
+  email: "",
+  telefone: "",
+  departamento: "",
+  cargo: "",
+  status: "Ativo",
+  dataAdmissao: "",
+  cpf: "",
+  password: "",
+  matricula: "",
+  tipoUsuario: "",
+  cargaHoraria: "08:00:00",
+});
+
 
   // 🔹 carregar departamentos e cargos
- useEffect(() => {
-    async function carregarUsuarios() {
-      try {
-        const data = await listarUsuarios();
-        // ⚠️ transformar resposta do backend no formato esperado pela UI
-        const usuariosUI = data.map((u) => ({
-          id: u.id,
-          nome: u.nome,
-          email: u.email,
-          telefone: u.telefone ?? "", // se não vier no backend
-          departamento: u.departamento ?? "-",
-          cargo: u.cargo ?? "-",
-          status: u.status ? "Ativo" : "Inativo",
-          dataAdmissao: u.data_admissao,
-          ultimoPonto: "--/--/---- --:--", // placeholder
-          horasTrabalhadas: "00:00", // placeholder
-        }));
-        setColaboradores(usuariosUI);
-      } catch (error) {
-        console.error("Erro ao carregar usuários:", error);
-      }
-    }
+// 🔹 carregar usuários, cargos e departamentos
+useEffect(() => {
+  async function carregarDados() {
+    try {
+      // --- Usuários ---
+      const usuariosResponse = await listarUsuarios();
+      console.log("USUÁRIOS:", usuariosResponse);
 
-    carregarUsuarios();
-  }, []);
+      // Se o backend retorna { usuarios: [...] }, pegue o array
+      const usuarios = usuariosResponse.usuarios || usuariosResponse;
+
+      // Normalizar para UI
+      const usuariosUI = usuarios.map((u) => ({
+        id: u.id,
+        nome: u.nome,
+        email: u.email,
+        telefone: u.telefone ?? "",
+        departamento: u.departamento ?? "-",
+        cargo: u.cargo ?? "-",
+        status: u.status ? "Ativo" : "Inativo",
+        dataAdmissao: u.data_admissao,
+        ultimoPonto: "--/--/---- --:--",
+        horasTrabalhadas: "00:00",
+      }));
+
+      setColaboradores(usuariosUI);
+
+      // --- Cargos ---
+      const cargos = await listarCargos();
+      console.log("CARGOS:", cargos);
+      setCargosApi(cargos.cargos || cargos);
+
+      // --- Departamentos ---
+      const departamentos = await listarDepartamentos();
+      console.log("DEPARTAMENTOS:", departamentos);
+      setDepartamentosApi(departamentos.departamentos || departamentos);
+    } catch (err) {
+      console.error("Erro ao carregar dados:", err);
+    }
+  }
+
+  carregarDados();
+}, []);
+
+
+
 
   // --- Helpers ---
   const handleSort = (field) => {
@@ -93,56 +118,60 @@ function Colaboradores() {
   };
 
   const handleSalvar = async () => {
-    try {
-      const payload = {
-        nome: form.nome,
-        email: form.email,
-        telefone: form.telefone || null,
-        departamento: Number(form.departamento),
-        cargo: Number(form.cargo),
-        status: form.status === "Ativo",
-        cpf: form.cpf.replace(/\D/g, ""),
-        matricula: "MAT-" + Date.now(),
-        tipo_usuario: 1,
-        carga_horaria: "08:00:00",
-        password: form.password,
-        data_admissao: form.dataAdmissao,
-      };
+  try {
+    const payload = {
+      nome: form.nome,
+      email: form.email,
+      telefone: form.telefone || null,
+      departamento: form.departamento ? Number(form.departamento) : null,
+      cargo: form.cargo ? Number(form.cargo) : null,
+      status: form.status === "Ativo",
+      cpf: form.cpf.replace(/\D/g, ""),
+      matricula: form.matricula || "MAT-" + Date.now(),
+      tipo_usuario: Number(form.tipoUsuario) || 2, // default Colaborador
+      carga_horaria: form.cargaHoraria || null,
+      password: form.password,
+      data_admissao: form.dataAdmissao || null,
+    };
 
-      const novoUsuario = await createUsuario(payload);
+    const novoUsuario = await createUsuario(payload);
 
-      const colaboradorUI = {
-        ...form,
-        id: novoUsuario.id,
-        status: payload.status ? "Ativo" : "Inativo",
-        ultimoPonto: "--/--/---- --:--",
-        horasTrabalhadas: "00:00",
-      };
+    const colaboradorUI = {
+      ...form,
+      id: novoUsuario.id,
+      status: payload.status ? "Ativo" : "Inativo",
+      ultimoPonto: "--/--/---- --:--",
+      horasTrabalhadas: "00:00",
+    };
 
-      setColaboradores((prev) => [...prev, colaboradorUI]);
-      setShowModal(false);
+    setColaboradores((prev) => [...prev, colaboradorUI]);
+    setShowModal(false);
 
-      setForm({
-        nome: "",
-        email: "",
-        telefone: "",
-        departamento: "",
-        cargo: "",
-        status: "Ativo",
-        dataAdmissao: "",
-        cpf: "",
-        password: "",
-      });
+    setForm({
+      nome: "",
+      email: "",
+      telefone: "",
+      departamento: "",
+      cargo: "",
+      status: "Ativo",
+      dataAdmissao: "",
+      cpf: "",
+      password: "",
+      matricula: "",
+      tipoUsuario: "",
+      cargaHoraria: "08:00:00",
+    });
 
-      alert("✅ Colaborador cadastrado com sucesso!");
-    } catch (error) {
-      console.error(error);
-      alert(
-        "❌ Erro ao salvar colaborador: " +
-          (error.response?.data?.detail || error.message)
-      );
-    }
-  };
+    alert("✅ Colaborador cadastrado com sucesso!");
+  } catch (error) {
+    console.error(error);
+    alert(
+      "❌ Erro ao salvar colaborador: " +
+        (error.response?.data?.detail || error.message)
+    );
+  }
+};
+
 
   // --- Filtro + Ordenação ---
   const filteredColaboradores = colaboradores
@@ -380,10 +409,11 @@ function Colaboradores() {
                         >
                           <option value="">Selecione...</option>
                           {cargosApi.map((cargo) => (
-                            <option key={cargo.id} value={cargo.id}>
-                              {cargo.nome}
-                            </option>
-                          ))}
+                          <option key={cargo.id} value={cargo.id}>
+                            {cargo.nome}
+                          </option>
+                        ))}
+
                         </select>
                       </div>
 
@@ -409,15 +439,38 @@ function Colaboradores() {
                       </div>
 
                       <div className="col-12 col-md-6">
-                        <label className="form-label">Status</label>
+                        <label className="form-label">Matrícula *</label>
+                        <input
+                          type="text"
+                          className="form-control"
+                          value={form.matricula}
+                          onChange={(e) => setForm({ ...form, matricula: e.target.value })}
+                          placeholder="Ex: 121400"
+                        />
+                      </div>
+
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">Tipo Usuário *</label>
                         <select
                           className="form-select"
-                          value={form.status}
-                          onChange={(e) => setForm({ ...form, status: e.target.value })}
+                          value={form.tipoUsuario}
+                          onChange={(e) => setForm({ ...form, tipoUsuario: e.target.value })}
                         >
-                          <option value="Ativo">Ativo</option>
-                          <option value="Inativo">Inativo</option>
+                          <option value="">Selecione...</option>
+                          <option value="1">Administrador</option>
+                          <option value="2">Colaborador</option>
                         </select>
+                      </div>
+
+                      <div className="col-12 col-md-6">
+                        <label className="form-label">Carga Horária</label>
+                        <input
+                          type="time"
+                          step="1"
+                          className="form-control"
+                          value={form.cargaHoraria}
+                          onChange={(e) => setForm({ ...form, cargaHoraria: e.target.value })}
+                        />
                       </div>
                     </div>
                   </div>

@@ -6,18 +6,17 @@ import ProtectedRoute from "./components/ProtectedRoute";
 
 // Layouts
 import AppLayoutGestor from "./components/AppLayoutGestor"; // gestor
-// colaborador pode ser sem layout, direto
 
 // Páginas
-import Login from "./pages/login";
-import Home from "./pages/home";
-import Ponto from "./pages/ponto";
-import Selfie from "./pages/selfie";
-import Confirmacao from "./pages/confirmacao";
-import PontosBatidos from "./pages/pontosBatidos";
-import DashboardGestor from "./pages/dashbordGestor";
-import Colaboradores from "./pages/colaboradores";
-import Folha from "./pages/folha";
+import Login from "./pages/login/login";
+import Home from "./pages/home/home";
+import Ponto from "./pages/ponto/ponto";
+import Selfie from "./pages/selfie/selfie";
+import Confirmacao from "./pages/confirmacao/confirmacao";
+import PontosBatidos from "./pages/pontosBatidos/pontosBatidos";
+import DashboardGestor from "./pages/dashbordGestor/dashbordGestor";
+import Colaboradores from "./pages/colaboradores/colaboradores";
+import Folha from "./pages/folha/folha";
 
 export default function App() {
   return (
@@ -29,14 +28,14 @@ export default function App() {
 
           {/* privadas */}
           <Route element={<ProtectedRoute />}>
-            {/* fluxo colaborador (sem Sidebar/Topbar) */}
+            {/* fluxo colaborador */}
             <Route path="/home" element={<Home />} />
             <Route path="/ponto" element={<Ponto />} />
             <Route path="/selfie" element={<Selfie />} />
             <Route path="/confirmacao" element={<Confirmacao />} />
             <Route path="/pontos" element={<PontosBatidos />} />
 
-            {/* fluxo gestor (com layout completo) */}
+            {/* fluxo gestor */}
             <Route element={<AppLayoutGestor />}>
               <Route path="/gestor" element={<DashboardGestor />} />
               <Route path="/colaboradores" element={<Colaboradores />} />

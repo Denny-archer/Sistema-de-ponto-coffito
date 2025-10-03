@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
-import { getBatidas } from "../services/batidas";// 👈 backend
+import { getBatidas } from "../../services/batidas";// 👈 backend
 import { Download, ArrowLeft, Clock, CalendarDays, BarChart3, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
 import "react-calendar/dist/Calendar.css";
 
