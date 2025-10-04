@@ -1,14 +1,13 @@
-// src/main.jsx
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App";
+
+// Import global bootstrap + estilos se tiver
 import "bootstrap/dist/css/bootstrap.min.css";
-import "./styles/custom.css";
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
-import App from "./App.jsx";
-import "./index.css";
+import "./index.css"; // caso você tenha um global
 
-
-createRoot(document.getElementById("root")).render(
-  <StrictMode>
+ReactDOM.createRoot(document.getElementById("root")).render(
+  <React.StrictMode>
     <App />
-  </StrictMode>
+  </React.StrictMode>
 );

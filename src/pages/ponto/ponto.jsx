@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaSignInAlt, FaSignOutAlt } from "react-icons/fa";
-import BotaoVoltar from "../componentes/BotaoVoltar";
+import BotaoVoltar from "../../componentes/BotaoVoltar";
 
 function Ponto() {
   const navigate = useNavigate();

@@ -7,10 +7,17 @@ import {
   User, 
   MoreVertical 
 } from "lucide-react";
-import { http } from "../services/http";
-
-// 🔹 Importando Recharts
+import { http } from "../../services/http";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+// 🔹 Helper para formatar data/hora
+const formatarHora = (data) => {
+  if (!data || data === "--:--") return "--:--";
+  return new Date(data).toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+};
 
 function DashboardGestor() {
   const [usuarios, setUsuarios] = useState([]);
@@ -51,9 +58,15 @@ function DashboardGestor() {
   // 🔹 Montar colaboradores
   const colaboradoresHoje = usuarios.map((u) => {
     const bUser = batidas.filter((b) => b.id_usuario === u.id);
-    const entrada = bUser.find((b) => b.descricao?.toLowerCase().includes("entrada"))?.data_batida || "--:--";
-    const almoco = bUser.find((b) => b.descricao?.toLowerCase().includes("almoco"))?.data_batida || "--:--";
-    const saida = bUser.find((b) => b.descricao?.toLowerCase().includes("saida"))?.data_batida || "--:--";
+    const entrada = formatarHora(
+      bUser.find((b) => b.descricao?.toLowerCase().includes("entrada"))?.data_batida
+    );
+    const almoco = formatarHora(
+      bUser.find((b) => b.descricao?.toLowerCase().includes("almoco"))?.data_batida
+    );
+    const saida = formatarHora(
+      bUser.find((b) => b.descricao?.toLowerCase().includes("saida"))?.data_batida
+    );
 
     return {
       id: u.id,
@@ -101,62 +114,126 @@ function DashboardGestor() {
   ];
   const COLORS = ["#4caf50", "#ff9800", "#2196f3", "#f44336"];
 
-  if (loading) return <div className="p-4">Carregando dados...</div>;
+  // 🔹 Spinner de carregamento
+  if (loading) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status">
+          <span className="visually-hidden">Carregando...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container">
       <main className="main-content">
         {/* KPIs */}
-        <section className="kpis-section">
-          <div className="section-header">
-            <h2>Visão Geral - Hoje</h2>
-          </div>
-          <div className="kpis-grid">
-            {kpis.map((kpi, idx) => (
-              <div key={idx} className={`kpi-card kpi-${kpi.variant}`}>
-                <div className="kpi-icon">{kpi.icon}</div>
-                <div className="kpi-content">
-                  <div className="kpi-value">
-                    {kpi.value}{kpi.total && <span>/{kpi.total}</span>}
-                  </div>
-                  <div className="kpi-description">{kpi.description}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
+        <section className="mb-4">
+  <h2 className="h5 mb-3">Visão Geral - Hoje</h2>
+  <div className="row g-3">
+    
+    {/* Colaboradores ativos */}
+    <div className="col-6 col-md-3">
+      <div className="card border-success shadow-sm h-100">
+        <div className="card-body text-center">
+          <CheckCircle size={28} className="text-success mb-2" />
+          <h3 className="fw-bold mb-0">{ativosHoje}/{totalUsuarios}</h3>
+          <small className="text-muted">Colaboradores ativos</small>
+        </div>
+      </div>
+    </div>
+
+    {/* Não registraram ponto */}
+    <div className="col-6 col-md-3">
+      <div className="card border-danger shadow-sm h-100">
+        <div className="card-body text-center">
+          <XCircle size={28} className="text-danger mb-2" />
+          <h3 className="fw-bold mb-0">{naoRegistraram}/{totalUsuarios}</h3>
+          <small className="text-muted">Não registraram ponto</small>
+        </div>
+      </div>
+    </div>
+
+    {/* Com horas extras */}
+    <div className="col-6 col-md-3">
+      <div className="card border-warning shadow-sm h-100">
+        <div className="card-body text-center">
+          <Clock size={28} className="text-warning mb-2" />
+          <h3 className="fw-bold mb-0">{horasExtrasHoje}</h3>
+          <small className="text-muted">Com horas extras</small>
+        </div>
+      </div>
+    </div>
+
+    {/* Justificativas pendentes */}
+    <div className="col-6 col-md-3">
+      <div className="card border-info shadow-sm h-100">
+        <div className="card-body text-center">
+          <FileText size={28} className="text-info mb-2" />
+          <h3 className="fw-bold mb-0">0</h3>
+          <small className="text-muted">Justificativas pendentes</small>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
 
         {/* Gráfico de Presença */}
         <section className="content-grid">
-          <div className="chart-card">
-            <div className="card-header d-flex justify-content-between align-items-center">
-              <h3>Distribuição de Presença</h3>
-              <button className="icon-btn"><MoreVertical size={16} /></button>
-            </div>
-            <div style={{ width: "100%", height: 300 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={chartData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, value }) => `${name}: ${value}`}
-                  >
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </section>
+  <div className="card shadow-sm">
+    <div className="card-header d-flex justify-content-between align-items-center">
+      <h5 className="mb-0">Distribuição de Presença</h5>
+      <button className="btn btn-sm btn-light">
+        <MoreVertical size={16} />
+      </button>
+    </div>
+    <div className="card-body">
+      <div style={{ width: "100%", height: 320 }}>
+        <ResponsiveContainer>
+          <PieChart>
+            <Pie
+              data={chartData}
+              cx="50%"
+              cy="50%"
+              outerRadius={110}
+              dataKey="value"
+            >
+              {chartData.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+
+            {/* Tooltip mais amigável */}
+            <Tooltip
+              content={({ payload }) => {
+                if (!payload || !payload.length) return null;
+                const { name, value } = payload[0];
+                const perc = ((value / totalUsuarios) * 100).toFixed(0);
+                return (
+                  <div className="card shadow-sm p-2 bg-white border-0">
+                    <strong>{name}</strong>
+                    <div>{value} colaboradores</div>
+                    <small className="text-muted">{perc}% do total</small>
+                  </div>
+                );
+              }}
+            />
+
+            <Legend
+              verticalAlign="bottom"
+              align="center"
+              wrapperStyle={{ paddingTop: "10px" }}
+            />
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  </div>
+</section>
+
 
         {/* Tabela */}
         <section className="table-section">
@@ -196,7 +273,9 @@ function DashboardGestor() {
                           {colab.horasExtras}
                         </td>
                         <td>{getStatusBadge(colab.status)}</td>
-                        <td><button className="btn btn-outline-dark btn-sm">Histórico</button></td>
+                        <td>
+                          <button className="btn btn-outline-dark btn-sm">Histórico</button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

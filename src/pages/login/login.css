@@ -1,0 +1,50 @@
+/* login.css */
+/* login.css */
+
+/* NÃO mexa mais no #root */
+#root {
+  display: unset !important;
+}
+
+/* wrapper do login */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #f8f9fa;
+}
+
+/* limita largura */
+.login-container {
+  width: 100%;
+  max-width: 500px;
+}
+
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @keyframes slideUp {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  
+  @keyframes popIn {
+    0% { transform: scale(0.8); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.8s ease-in-out;
+  }
+  
+  .animate-slide-up {
+    animation: slideUp 0.8s ease-out;
+  }
+  
+  .animate-pop-in {
+    animation: popIn 0.5s ease-out;
+  }
