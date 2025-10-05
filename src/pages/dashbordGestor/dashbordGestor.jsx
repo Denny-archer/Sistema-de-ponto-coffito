@@ -1,4 +1,7 @@
 import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+
 import { 
   CheckCircle, 
   XCircle, 
@@ -20,8 +23,11 @@ const formatarHora = (data) => {
 };
 
 function DashboardGestor() {
+   const navigate = useNavigate();
+
   const [usuarios, setUsuarios] = useState([]);
   const [batidas, setBatidas] = useState([]);
+  const [justificativasPendentes, setJustificativasPendentes] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,11 +39,15 @@ function DashboardGestor() {
         const { data: dataBatidas } = await http.get("/batidas/?skip=0");
         setBatidas(dataBatidas.batidas || []);
 
+        const { data: dataJust } = await http.get("/justificativas?status=pendente");
+        setJustificativasPendentes(dataJust?.total || dataJust?.length || 0);
+
         setLoading(false);
       } catch (err) {
         console.error("Erro ao carregar dados do dashboard:", err);
         setUsuarios([]);
         setBatidas([]);
+        setJustificativasPendentes(0);
         setLoading(false);
       }
     }
@@ -166,16 +176,21 @@ function DashboardGestor() {
       </div>
     </div>
 
-    {/* Justificativas pendentes */}
+   {/* Justificativas pendentes */}
     <div className="col-6 col-md-3">
-      <div className="card border-info shadow-sm h-100">
+      <div 
+        className="card border-info shadow-sm h-100 card-hover" 
+        role="button"
+        onClick={() => navigate("/gestor/justificativas")}
+      >
         <div className="card-body text-center">
           <FileText size={28} className="text-info mb-2" />
-          <h3 className="fw-bold mb-0">0</h3>
+          <h3 className="fw-bold mb-0">{justificativasPendentes}</h3>
           <small className="text-muted">Justificativas pendentes</small>
         </div>
       </div>
     </div>
+
 
   </div>
 </section>

@@ -17,6 +17,7 @@ import PontosBatidos from "./pages/pontosBatidos/pontosBatidos";
 import DashboardGestor from "./pages/dashbordGestor/dashbordGestor";
 import Colaboradores from "./pages/colaboradores/colaboradores";
 import Folha from "./pages/folha/folha";
+import GestorJustificativas from "./pages/justificativas/gestorJustificativas";
 
 export default function App() {
   return (
@@ -38,6 +39,7 @@ export default function App() {
             {/* fluxo gestor */}
             <Route element={<AppLayoutGestor />}>
               <Route path="/gestor" element={<DashboardGestor />} />
+              <Route path="/gestor/justificativas" element={<GestorJustificativas />} />
               <Route path="/colaboradores" element={<Colaboradores />} />
               <Route path="/folha" element={<Folha />} />
             </Route>
