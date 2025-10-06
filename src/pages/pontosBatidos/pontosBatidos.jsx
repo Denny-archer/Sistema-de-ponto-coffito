@@ -1,8 +1,20 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
-import { getBatidas } from "../../services/batidas";// 👈 backend
-import { Download, ArrowLeft, Clock, CalendarDays, BarChart3, AlertCircle, CheckCircle2, XCircle } from "lucide-react";
+import { getBatidas } from "../../services/batidas"; // 👈 backend
+import {
+  Download,
+  ArrowLeft,
+  Clock,
+  CalendarDays,
+  AlertCircle,
+  CheckCircle2,
+  XCircle,
+} from "lucide-react";
+import { Modal, Button, Form } from "react-bootstrap";
+import Swal from "sweetalert2";
+import "sweetalert2/dist/sweetalert2.min.css";
+import { http } from "../../services/http";
 import "react-calendar/dist/Calendar.css";
 
 function PontosBatidos() {
@@ -14,6 +26,12 @@ function PontosBatidos() {
   const [viewMode, setViewMode] = useState("dia");
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  // Modal de justificativa
+  const [showJustModal, setShowJustModal] = useState(false);
+  const [motivo, setMotivo] = useState("");
+  const [tipo, setTipo] = useState("esquecimento");
+  const [anexo, setAnexo] = useState(null);
 
   // Carrega batidas do backend
   useEffect(() => {
@@ -46,10 +64,10 @@ function PontosBatidos() {
           data: dataStr,
           batidas: [],
           horasTrabalhadas: "00:00",
-          horasPrevistas: "08:00", // depois pode vir do usuário
+          horasPrevistas: "08:00",
           bancoHoras: "00:00",
           status: "incompleto",
-          observacao: ""
+          observacao: "",
         };
       }
 
@@ -70,7 +88,6 @@ function PontosBatidos() {
     return Object.values(registrosMap);
   };
 
-  // Calcular horas trabalhadas (par entrada/saída)
   const calcularHoras = (batidas) => {
     if (batidas.length < 2) return "00:00";
     let totalMinutos = 0;
@@ -93,6 +110,7 @@ function PontosBatidos() {
   };
 
   const definirStatus = (r) => {
+    if (r.batidas.length === 0) return "sem-registro";
     if (r.batidas.length < 4) return "incompleto";
     if (r.bancoHoras.startsWith("+")) return "positivo";
     if (r.bancoHoras.startsWith("-")) return "negativo";
@@ -111,23 +129,18 @@ function PontosBatidos() {
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
   };
 
-  // Detalhe do dia
   const formatDate = (date) => date.toLocaleDateString("pt-BR");
   const detalheDia = useMemo(() => {
     const dataStr = formatDate(selectedDate);
     return registros.find((r) => r.data === dataStr) || null;
   }, [selectedDate, registros]);
 
-  // Status por dia (para calendário)
   const getDayStatus = (date) => {
     const dataStr = formatDate(date);
     const registro = registros.find((r) => r.data === dataStr);
-
-    if (!registro) return "sem-registro";
-    return registro.status;
+    return registro ? registro.status : "sem-registro";
   };
 
-  // Tile do calendário
   const tileContent = ({ date, view }) => {
     if (view !== "month") return null;
     const status = getDayStatus(date);
@@ -156,7 +169,7 @@ function PontosBatidos() {
               width: "6px",
               height: "6px",
               borderRadius: "50%",
-              marginLeft: "2px"
+              marginLeft: "2px",
             }}
           ></div>
         )}
@@ -175,14 +188,21 @@ function PontosBatidos() {
     return classes.join(" ");
   };
 
-  // Função de download (simulada)
   const handleDownload = async () => {
     setBaixando(true);
     try {
       await new Promise((resolve) => setTimeout(resolve, 1500));
-      alert("✅ Comprovante baixado com sucesso!");
+      Swal.fire({
+        icon: "success",
+        title: "Relatório baixado com sucesso!",
+        confirmButtonColor: "#00c9a7",
+      });
     } catch {
-      alert("❌ Erro ao baixar comprovante");
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao baixar relatório!",
+        confirmButtonColor: "#f44336",
+      });
     } finally {
       setBaixando(false);
     }
@@ -203,7 +223,39 @@ function PontosBatidos() {
     }
   };
 
-  // --- JSX mantém praticamente igual ao que você tinha ---
+  const enviarJustificativa = async () => {
+    try {
+      const formData = new FormData();
+      formData.append(
+        "data",
+        detalheDia ? detalheDia.data : formatDate(selectedDate)
+      );
+      formData.append("tipo", tipo);
+      formData.append("motivo", motivo);
+      if (anexo) formData.append("anexo", anexo);
+
+      await http.post("/justificativas", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      setShowJustModal(false);
+      Swal.fire({
+        icon: "success",
+        title: "Justificativa enviada!",
+        text: "Sua justificativa foi registrada e aguarda aprovação do gestor.",
+        confirmButtonColor: "#00c9a7",
+      });
+    } catch (err) {
+      console.error(err);
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao enviar justificativa.",
+        confirmButtonColor: "#f44336",
+      });
+    }
+  };
+
+  // --- JSX ---
   return (
     <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3 bg-light">
       {/* Header */}
@@ -241,24 +293,6 @@ function PontosBatidos() {
                       <CalendarDays size={18} className="me-2" />
                       Calendário
                     </h5>
-                    <div className="btn-group btn-group-sm">
-                      <button
-                        className={`btn ${
-                          viewMode === "dia" ? "btn-primary" : "btn-outline-primary"
-                        }`}
-                        onClick={() => setViewMode("dia")}
-                      >
-                        Dia
-                      </button>
-                      <button
-                        className={`btn ${
-                          viewMode === "mes" ? "btn-primary" : "btn-outline-primary"
-                        }`}
-                        onClick={() => setViewMode("mes")}
-                      >
-                        Mês
-                      </button>
-                    </div>
                   </div>
                 </div>
                 <div className="card-body">
@@ -289,118 +323,98 @@ function PontosBatidos() {
 
             {/* Detalhes do Dia */}
             <div className="col-12 col-lg-6">
-              {viewMode === "dia" ? (
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-header bg-white border-0">
-                    <h5 className="fw-bold mb-0 d-flex align-items-center">
-                      <Clock size={18} className="me-2" />
-                      Detalhes do Dia - {formatDate(selectedDate)}
-                    </h5>
-                  </div>
-                  <div className="card-body">
-                    {detalheDia ? (
-                      <>
-                        <div className="d-flex align-items-center mb-3 p-3 rounded bg-light">
-                          {getStatusIcon(detalheDia.status)}
-                          <span className="ms-2 fw-medium">
-                            {detalheDia.status === "completo"
-                              ? "Dia completo"
-                              : detalheDia.status === "incompleto"
-                              ? "Dia incompleto"
-                              : detalheDia.status === "positivo"
-                              ? "Horas positivas"
-                              : "Horas negativas"}
-                          </span>
-                        </div>
-                        {/* Batidas */}
-                        <div className="mb-4">
-                          <h6 className="fw-bold mb-3">Batidas de Ponto</h6>
-                          <div className="d-flex flex-wrap gap-2">
-                            {detalheDia.batidas.map((hora, index) => (
-                              <div
-                                key={index}
-                                className="d-flex align-items-center"
-                              >
-                                <span className="badge bg-secondary me-1">
-                                  {index + 1}
-                                </span>
-                                <span
-                                  className={`badge ${
-                                    hora
-                                      ? "bg-primary"
-                                      : "bg-light text-muted border"
-                                  } p-2`}
-                                >
-                                  {hora || "Não registrado"}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                        {/* Resumo */}
-                        <div className="row g-3">
-                          <div className="col-6">
-                            <div className="text-center p-2 bg-light rounded">
-                              <small className="text-muted d-block">
-                                Trabalhadas
-                              </small>
-                              <strong className="text-primary">
-                                {detalheDia.horasTrabalhadas}
-                              </strong>
-                            </div>
-                          </div>
-                          <div className="col-6">
-                            <div className="text-center p-2 bg-light rounded">
-                              <small className="text-muted d-block">Previstas</small>
-                              <strong>{detalheDia.horasPrevistas}</strong>
-                            </div>
-                          </div>
-                          <div className="col-12">
-                            <div
-                              className={`text-center p-2 rounded ${
-                                detalheDia.bancoHoras.startsWith("+")
-                                  ? "bg-success bg-opacity-10 text-success"
-                                  : detalheDia.bancoHoras.startsWith("-")
-                                  ? "bg-warning bg-opacity-10 text-warning"
-                                  : "bg-light"
-                              }`}
-                            >
-                              <small className="text-muted d-block">
-                                Banco de Horas
-                              </small>
-                              <strong>{detalheDia.bancoHoras}</strong>
-                            </div>
-                          </div>
-                        </div>
-                        
-                      </>
-                    ) : (
-                      <div className="text-center py-5">
-                        <Clock size={48} className="text-muted mb-3" />
-                        <p className="text-muted">
-                          Nenhum registro para este dia.
-                        </p>
-                        <small className="text-muted">
-                          Selecione uma data com registros
-                        </small>
+              <div className="card border-0 shadow-sm h-100">
+                <div className="card-header bg-white border-0">
+                  <h5 className="fw-bold mb-0 d-flex align-items-center">
+                    <Clock size={18} className="me-2" />
+                    Detalhes do Dia - {formatDate(selectedDate)}
+                  </h5>
+                </div>
+                <div className="card-body">
+                  {detalheDia ? (
+                    <>
+                      <div className="d-flex align-items-center mb-3 p-3 rounded bg-light">
+                        {getStatusIcon(detalheDia.status)}
+                        <span className="ms-2 fw-medium text-capitalize">
+                          {detalheDia.status.replace("-", " ")}
+                        </span>
                       </div>
-                    )}
-                  </div>
+
+                      {/* Batidas */}
+                      <div className="mb-4">
+                        <h6 className="fw-bold mb-3">Batidas de Ponto</h6>
+                        <div className="d-flex flex-wrap gap-2">
+                          {detalheDia.batidas.map((hora, index) => (
+                            <div key={index} className="d-flex align-items-center">
+                              <span className="badge bg-secondary me-1">
+                                {index + 1}
+                              </span>
+                              <span className="badge bg-primary p-2">{hora}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Resumo */}
+                      <div className="row g-3 mb-3">
+                        <div className="col-6">
+                          <div className="text-center p-2 bg-light rounded">
+                            <small className="text-muted d-block">Trabalhadas</small>
+                            <strong className="text-primary">
+                              {detalheDia.horasTrabalhadas}
+                            </strong>
+                          </div>
+                        </div>
+                        <div className="col-6">
+                          <div className="text-center p-2 bg-light rounded">
+                            <small className="text-muted d-block">Previstas</small>
+                            <strong>{detalheDia.horasPrevistas}</strong>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Banco de Horas */}
+                      <div
+                        className={`text-center p-2 rounded ${
+                          detalheDia.bancoHoras.startsWith("+")
+                            ? "bg-success bg-opacity-10 text-success"
+                            : detalheDia.bancoHoras.startsWith("-")
+                            ? "bg-warning bg-opacity-10 text-warning"
+                            : "bg-light"
+                        }`}
+                      >
+                        <small className="text-muted d-block">Banco de Horas</small>
+                        <strong>{detalheDia.bancoHoras}</strong>
+                      </div>
+
+                      {/* Botão Justificar */}
+                      {["incompleto", "sem-registro"].includes(
+                        detalheDia.status
+                      ) && (
+                        <div className="text-center mt-4">
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => setShowJustModal(true)}
+                          >
+                            <AlertCircle size={18} className="me-2" />
+                            Justificar Ponto
+                          </button>
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    <div className="text-center py-5">
+                      <Clock size={48} className="text-muted mb-3" />
+                      <p className="text-muted">Nenhum registro para este dia.</p>
+                    </div>
+                  )}
                 </div>
-              ) : (
-                <div className="card border-0 shadow-sm h-100">
-                  <div className="card-body">
-                    <p className="text-muted text-center">
-                      📊 Resumo do mês ainda será implementado com dados reais
-                    </p>
-                  </div>
-                </div>
-              )}
+              </div>
             </div>
           </div>
 
-          {/* Botão Download */}
-          <div className="text-center mt-4">
+          {/* Botões de Ação */}
+          <div className="text-center mt-4 d-flex flex-column gap-2 align-items-center">
             <button
               className="btn btn-primary btn-lg px-4"
               onClick={handleDownload}
@@ -411,9 +425,7 @@ function PontosBatidos() {
                   <div
                     className="spinner-border spinner-border-sm me-2"
                     role="status"
-                  >
-                    <span className="visually-hidden">Baixando...</span>
-                  </div>
+                  ></div>
                   Gerando Relatório...
                 </>
               ) : (
@@ -423,12 +435,76 @@ function PontosBatidos() {
                 </>
               )}
             </button>
+
+            {/* Botão Global */}
+            <button
+              className="btn btn-outline-secondary btn-sm"
+              onClick={() => setShowJustModal(true)}
+            >
+              Nova Justificativa
+            </button>
           </div>
         </div>
       </div>
-    </div>
-    
 
+      {/* Modal */}
+      <Modal show={showJustModal} onHide={() => setShowJustModal(false)} centered>
+        <Modal.Header closeButton>
+          <Modal.Title>Justificar Ponto</Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form>
+            <Form.Group className="mb-3">
+              <Form.Label>Data</Form.Label>
+              <Form.Control
+                type="text"
+                value={detalheDia ? detalheDia.data : formatDate(selectedDate)}
+                readOnly
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Tipo</Form.Label>
+              <Form.Select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+                <option value="esquecimento">Esquecimento</option>
+                <option value="atraso">Atraso</option>
+                <option value="ausencia">Ausência</option>
+                <option value="outro">Outro</option>
+              </Form.Select>
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Motivo</Form.Label>
+              <Form.Control
+                as="textarea"
+                rows={3}
+                placeholder="Descreva o motivo..."
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+              />
+            </Form.Group>
+            <Form.Group className="mb-3">
+              <Form.Label>Anexo (opcional)</Form.Label>
+              <Form.Control
+                type="file"
+                accept=".jpg,.png,.pdf"
+                onChange={(e) => setAnexo(e.target.files[0])}
+              />
+            </Form.Group>
+          </Form>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button variant="secondary" onClick={() => setShowJustModal(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            style={{ backgroundColor: "#00c9a7", border: "none" }}
+            onClick={enviarJustificativa}
+          >
+            Enviar Justificativa
+          </Button>
+        </Modal.Footer>
+      </Modal>
+    </div>
   );
 }
 
