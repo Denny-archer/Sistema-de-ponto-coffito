@@ -1,11 +1,17 @@
-// 📂 src/components/Sidebar.jsx
 import React from "react";
 import { NavLink } from "react-router-dom";
 import { Users, FileText, BarChart3, LogOut, User } from "lucide-react";
-import useAuth from "../hooks/useAuth";
+import useUser from "../hooks/useUser";
+import { clearToken } from "../services/http";
 
-function Sidebar({ isOpen=false, onClose=()=>{} }) {
-  const { user, signOut } = useAuth();
+function Sidebar({ isOpen = false, onClose = () => {} }) {
+  const { user, clearUser } = useUser();
+
+  const handleLogout = () => {
+    clearToken();
+    clearUser();
+    window.location.href = "/login";
+  };
 
   return (
     <>
@@ -22,9 +28,13 @@ function Sidebar({ isOpen=false, onClose=()=>{} }) {
           </div>
         </div>
 
+        {/* Usuário logado */}
         <div className="sidebar-user px-3 py-3 border-bottom">
           <div className="d-flex align-items-center gap-2">
-            <div className="user-avatar bg-light rounded-circle d-flex align-items-center justify-content-center" style={{width: 32, height: 32}}>
+            <div
+              className="user-avatar bg-light rounded-circle d-flex align-items-center justify-content-center"
+              style={{ width: 32, height: 32 }}
+            >
               <User size={18} />
             </div>
             <div>
@@ -36,23 +46,37 @@ function Sidebar({ isOpen=false, onClose=()=>{} }) {
           </div>
         </div>
 
+        {/* Navegação */}
         <nav className="sidebar-nav mt-3">
-          <NavLink to="/gestor" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/gestor"
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
             <BarChart3 size={20} />
             <span>Dashboard</span>
           </NavLink>
-          <NavLink to="/colaboradores" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/colaboradores"
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
             <Users size={20} />
             <span>Cadastros</span>
           </NavLink>
-          <NavLink to="/folha" className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}>
+          <NavLink
+            to="/folha"
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
             <FileText size={20} />
             <span>Folha</span>
           </NavLink>
         </nav>
 
+        {/* Logout */}
         <div className="mt-auto px-3 py-3 border-top">
-          <button className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 w-100" onClick={signOut}>
+          <button
+            className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 w-100"
+            onClick={handleLogout}
+          >
             <LogOut size={18} />
             <span>Sair</span>
           </button>

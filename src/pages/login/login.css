@@ -21,6 +21,21 @@
   max-width: 500px;
 }
 
+.btn-outline-primary {
+  background-color: white;
+  border-width: 2px;
+  transition: all 0.2s ease;
+}
+
+.btn-outline-primary:hover {
+  background-color: #e6f0ff;
+  color: #0056b3;
+}
+
+.login-card {
+  border-radius: 16px;
+}
+
 
 @keyframes fadeIn {
     from { opacity: 0; }

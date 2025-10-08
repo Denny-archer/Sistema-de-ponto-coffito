@@ -1,25 +1,21 @@
-import React, { useRef, useState, useEffect, useContext } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { http, getToken } from "../../services/http";
+import React, { useRef, useState, useEffect } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
+import { http } from "../../services/http";
+import useUser from "../../hooks/useUser";
+import Swal from "sweetalert2";
+import {
+  Camera,
+  RefreshCcw,
+  Check,
+  ArrowLeft,
+  VideoOff,
+  Loader,
+} from "lucide-react";
 import "./selfie.css";
-import { AuthContext } from "../../context/AuthProvider";
-import { Camera, RefreshCcw, Check, ArrowLeft, Video, VideoOff, Loader } from "lucide-react";
 
-console.log("Token atual:", getToken());
-
-// --- Subcomponente: Visualização da câmera ---
-function CameraView({ videoRef, canvasRef, cameraLoading, isCapturing, tirarFoto, isLoading, cameraError }) {
+function CameraView({ videoRef, canvasRef, cameraLoading, tirarFoto, cameraError, isLoading }) {
   return (
-    <div className="position-relative">
-      {isCapturing && (
-        <div className="position-absolute top-0 start-0 end-0 d-flex justify-content-center">
-          <span className="badge bg-success bg-opacity-90 px-3 py-2 m-2 m-md-3">
-            <Video size={14} className="me-2" />
-            Câmera ativa
-          </span>
-        </div>
-      )}
-
+    <div className="position-relative text-center">
       {cameraLoading && (
         <div className="position-absolute top-50 start-50 translate-middle">
           <div className="spinner-border text-primary" role="status">
@@ -47,17 +43,12 @@ function CameraView({ videoRef, canvasRef, cameraLoading, isCapturing, tirarFoto
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      <div className="mt-4 mt-md-5">
+      <div className="mt-4">
         <button
           className="btn btn-danger btn-capture shadow-lg"
           onClick={tirarFoto}
           disabled={isLoading || cameraLoading || cameraError}
-          style={{
-            width: "80px",
-            height: "80px",
-            borderRadius: "50%",
-            border: "4px solid white",
-          }}
+          style={{ width: "80px", height: "80px", borderRadius: "50%", border: "4px solid white" }}
         >
           <Camera size={32} />
         </button>
@@ -66,46 +57,28 @@ function CameraView({ videoRef, canvasRef, cameraLoading, isCapturing, tirarFoto
   );
 }
 
-// --- Subcomponente: Preview da selfie ---
 function SelfiePreview({ foto, refazerFoto, confirmar, isLoading }) {
   return (
     <div className="text-center">
-      <div className="position-relative d-inline-block">
-        <img
-          src={foto}
-          alt="Selfie capturada"
-          className="img-fluid rounded-3 shadow-lg"
-          style={{ maxWidth: "400px", width: "100%" }}
-        />
-        <span className="badge bg-info position-absolute top-0 end-0 m-2 m-md-3">
-          Preview
-        </span>
-      </div>
-
-      <div className="d-flex flex-column flex-sm-row justify-content-center gap-3 mt-4 mt-md-5">
-        <button
-          className="btn btn-outline-secondary btn-lg flex-fill"
-          onClick={refazerFoto}
-          disabled={isLoading}
-        >
+      <img
+        src={foto}
+        alt="Selfie capturada"
+        className="img-fluid rounded-3 shadow-lg"
+        style={{ maxWidth: "400px", width: "100%" }}
+      />
+      <div className="d-flex flex-column flex-sm-row justify-content-center gap-3 mt-4">
+        <button className="btn btn-outline-secondary btn-lg flex-fill" onClick={refazerFoto} disabled={isLoading}>
           <RefreshCcw size={18} className="me-2" />
-          Refazer Foto
+          Refazer
         </button>
-
-        <button
-          className="btn btn-success btn-lg flex-fill"
-          onClick={confirmar}
-          disabled={isLoading}
-        >
+        <button className="btn btn-success btn-lg flex-fill" onClick={confirmar} disabled={isLoading}>
           {isLoading ? (
             <>
-              <Loader size={18} className="me-2 spin" />
-              Processando...
+              <Loader size={18} className="me-2 spin" /> Processando...
             </>
           ) : (
             <>
-              <Check size={18} className="me-2" />
-              Confirmar Selfie
+              <Check size={18} className="me-2" /> Confirmar Selfie
             </>
           )}
         </button>
@@ -114,34 +87,40 @@ function SelfiePreview({ foto, refazerFoto, confirmar, isLoading }) {
   );
 }
 
-function Selfie() {
-  const { user } = useContext(AuthContext);
-  const videoRef = useRef(null);
-  const canvasRef = useRef(null);
-
-  const [foto, setFoto] = useState(null);
-  const [isCapturing, setIsCapturing] = useState(true);
-  const [cameraError, setCameraError] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [cameraLoading, setCameraLoading] = useState(true);
-
+export default function Selfie() {
+  const { user, fetchUser, loadingUser } = useUser();
   const navigate = useNavigate();
   const location = useLocation();
-  const { tipo } = location.state || {};
+  const { tipo } = location.state || {}; // entrada / saída
 
-  // Ativar câmera
+  const videoRef = useRef(null);
+  const canvasRef = useRef(null);
+  const [foto, setFoto] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [cameraLoading, setCameraLoading] = useState(true);
+  const [cameraError, setCameraError] = useState(false);
+
+  // 🔹 Garante autenticação
   useEffect(() => {
-    let stream = null;
+    if (!user && !loadingUser) {
+      fetchUser().catch(() => {
+        Swal.fire({
+          icon: "error",
+          title: "Sessão expirada",
+          text: "Faça login novamente para registrar seu ponto.",
+        }).then(() => navigate("/login"));
+      });
+    }
+  }, [user, loadingUser, fetchUser, navigate]);
 
-    const activateCamera = async () => {
+  // 🔹 Ativa a câmera
+  useEffect(() => {
+    let stream;
+    async function iniciarCamera() {
       try {
-        setCameraLoading(true);
         setCameraError(false);
-
-        stream = await navigator.mediaDevices.getUserMedia({
-          video: { facingMode: "user", width: { ideal: 1280 }, height: { ideal: 720 } },
-        });
-
+        setCameraLoading(true);
+        stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           videoRef.current.onloadeddata = () => setCameraLoading(false);
@@ -151,47 +130,46 @@ function Selfie() {
         setCameraError(true);
         setCameraLoading(false);
       }
-    };
-
-    if (isCapturing && !foto) {
-      activateCamera();
     }
 
+    iniciarCamera();
     return () => {
-      if (stream) {
-        stream.getTracks().forEach((track) => track.stop());
-      }
+      if (stream) stream.getTracks().forEach((t) => t.stop());
     };
-  }, [isCapturing, foto]);
+  }, []);
 
+  // 🔹 Captura a foto
   const tirarFoto = () => {
-    const canvas = canvasRef.current;
     const video = videoRef.current;
+    const canvas = canvasRef.current;
     if (!video || video.readyState !== 4) return;
 
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
 
-    const context = canvas.getContext("2d");
-    context.translate(canvas.width, 0);
-    context.scale(-1, 1);
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
+    // Espelha imagem
+    ctx.translate(canvas.width, 0);
+    ctx.scale(-1, 1);
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.9);
     setFoto(dataUrl);
-    setIsCapturing(false);
   };
 
   const refazerFoto = () => {
     setFoto(null);
     setCameraError(false);
-    setIsCapturing(true);
   };
 
+  // 🔹 Envia selfie + tipo de ponto
   const confirmar = async () => {
-    if (!foto) return;
-    if (!user?.id) {
-      alert("Usuário não identificado.");
+    if (!foto || !tipo) {
+      Swal.fire({
+        icon: "warning",
+        title: "Ação inválida",
+        text: "Não foi possível identificar o tipo de ponto.",
+      });
       return;
     }
 
@@ -199,89 +177,94 @@ function Selfie() {
     try {
       const res = await fetch(foto);
       const blob = await res.blob();
-
       const formData = new FormData();
       formData.append("imagem", blob, "selfie.jpg");
 
-      const response = await http.post(
-        `/batidas/?id_usuario=${user.id}&descricao=${tipo}`,
-        formData,
-        { headers: { "Content-Type": "multipart/form-data" } }
-      );
+      // ✅ Envia id_usuario e descricao na query string, conforme backend exige
+      const url = `/batidas/?id_usuario=${user.id}&descricao=${tipo}`;
 
-      console.log("✅ Ponto registrado:", response.data);
+      const response = await http.post(url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Ponto registrado com sucesso!",
+        confirmButtonColor: "#00c9a7",
+      });
+
       navigate("/confirmacao", { state: { selfie: foto, tipo, result: response.data } });
     } catch (error) {
-      console.error("❌ Erro ao registrar ponto:", error);
-      alert("Erro ao registrar ponto: " + (error.response?.data?.detail || error.message));
+      console.error("Erro ao registrar ponto:", error);
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao registrar ponto",
+        text: error.response?.data?.detail || "Falha na comunicação com o servidor.",
+        confirmButtonColor: "#dc3545",
+      });
     } finally {
       setIsLoading(false);
     }
   };
 
-  const tentarNovamenteCamera = () => {
-    setCameraError(false);
-    setIsCapturing(true);
-  };
-
   const voltar = () => navigate("/ponto");
 
+  if (loadingUser || !user) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100">
+        <div className="spinner-border text-primary" role="status"></div>
+      </div>
+    );
+  }
+
   return (
-    <div className="container-fluid d-flex flex-column min-vh-100 py-3 py-md-4 px-3 px-md-4">
-      {/* Header fixo */}
-      <div className="w-100 mb-3 mb-md-4">
+    <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3">
+      {/* Header */}
+      <div className="mb-3">
         <button className="btn btn-outline-secondary btn-sm" onClick={voltar} disabled={isLoading}>
           <ArrowLeft size={18} className="me-1" /> Voltar
         </button>
       </div>
 
+      {/* Conteúdo */}
       <div className="row justify-content-center align-items-center flex-grow-1">
-        <div className="col-12 col-md-8 col-lg-6 col-xl-5">
-          <h2 className="fw-bold text-center mb-3 mb-md-4">Sorria! Tire sua selfie</h2>
+        <div className="col-12 col-md-8 col-lg-6 col-xl-5 text-center">
+          <h2 className="fw-bold mb-3">Sorria! Tire sua selfie</h2>
 
-          <div className="alert alert-info border-0 text-center mb-4 mb-md-5 shadow-sm">
-            <div className="d-flex align-items-center justify-content-center">
-              <span className="fs-5 me-2">📸</span>
-              <span>
-                <strong>Dica:</strong> Posicione seu rosto no centro e certifique-se da boa iluminação
-              </span>
+          <div className="alert alert-info border-0 text-center mb-4 shadow-sm">
+            <span className="fs-5 me-2">📸</span>
+            Posicione seu rosto no centro e garanta boa iluminação
+          </div>
+
+          {cameraError ? (
+            <div className="p-4 border rounded bg-light shadow-sm">
+              <VideoOff size={64} className="text-muted mb-3" />
+              <h5 className="mb-2">Câmera não disponível</h5>
+              <p className="text-muted mb-4">Verifique as permissões e tente novamente.</p>
+              <button className="btn btn-primary" onClick={() => window.location.reload()} disabled={isLoading}>
+                <RefreshCcw size={16} className="me-2" /> Tentar novamente
+              </button>
             </div>
-          </div>
-
-          <div className="text-center">
-            {cameraError ? (
-              <div className="p-4 p-md-5 border rounded bg-light text-center shadow-sm">
-                <VideoOff size={64} className="text-muted mb-3" />
-                <h5 className="mb-2">Câmera não disponível</h5>
-                <p className="text-muted mb-4">Verifique as permissões da câmera e tente novamente</p>
-                <button className="btn btn-primary" onClick={tentarNovamenteCamera} disabled={isLoading}>
-                  <RefreshCcw size={16} className="me-2" /> Tentar Novamente
-                </button>
-              </div>
-            ) : !foto ? (
-              <CameraView
-                videoRef={videoRef}
-                canvasRef={canvasRef}
-                cameraLoading={cameraLoading}
-                isCapturing={isCapturing}
-                tirarFoto={tirarFoto}
-                isLoading={isLoading}
-                cameraError={cameraError}
-              />
-            ) : (
-              <SelfiePreview foto={foto} refazerFoto={refazerFoto} confirmar={confirmar} isLoading={isLoading} />
-            )}
-          </div>
-
-          <div className="mt-4 mt-md-5 text-center">
-            <small className="text-muted">
-              💡 {foto ? "Confirme se a selfie está nítida" : "Toque no botão vermelho para capturar"}
-            </small>
-          </div>
+          ) : !foto ? (
+            <CameraView
+              videoRef={videoRef}
+              canvasRef={canvasRef}
+              cameraLoading={cameraLoading}
+              tirarFoto={tirarFoto}
+              isLoading={isLoading}
+              cameraError={cameraError}
+            />
+          ) : (
+            <SelfiePreview foto={foto} refazerFoto={refazerFoto} confirmar={confirmar} isLoading={isLoading} />
+          )}
         </div>
+      </div>
+
+      <div className="mt-4 text-center">
+        <small className="text-muted">
+          💡 {foto ? "Confirme se a selfie está nítida" : "Toque no botão vermelho para capturar"}
+        </small>
       </div>
     </div>
   );
 }
-
-export default Selfie;

@@ -1,7 +1,6 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
-import { getBatidas } from "../../services/batidas"; // 👈 backend
 import {
   Download,
   ArrowLeft,
@@ -14,70 +13,106 @@ import {
 import { Modal, Button, Form } from "react-bootstrap";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-import { http } from "../../services/http";
 import "react-calendar/dist/Calendar.css";
+import "../../styles/custom.css";
+
+import { http } from "../../services/http";
+import useUser from "../../hooks/useUser";
 
 function PontosBatidos() {
   const navigate = useNavigate();
+  const { user, fetchUser, loadingUser, clearUser } = useUser();
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeStartDate, setActiveStartDate] = useState(new Date());
   const [baixando, setBaixando] = useState(false);
-  const [viewMode, setViewMode] = useState("dia");
   const [registros, setRegistros] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Modal de justificativa
+  // Justificativa modal
   const [showJustModal, setShowJustModal] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [tipo, setTipo] = useState("esquecimento");
   const [anexo, setAnexo] = useState(null);
 
-  // Carrega batidas do backend
+  // 🧠 Garantir sessão válida
+  useEffect(() => {
+    const validarUsuario = async () => {
+      if (!user && !loadingUser) {
+        try {
+          await fetchUser();
+        } catch (error) {
+          console.error("Sessão expirada:", error);
+          clearUser();
+          Swal.fire({
+            icon: "error",
+            title: "Sessão expirada",
+            text: "Faça login novamente.",
+            confirmButtonColor: "#0d6efd",
+          }).then(() => navigate("/login"));
+        }
+      }
+    };
+    validarUsuario();
+  }, [user, loadingUser, fetchUser, clearUser, navigate]);
+
+  // 🔹 Carregar batidas do usuário autenticado
+ // 🔹 Carregar batidas do usuário autenticado
+const carregarBatidas = useCallback(async () => {
+  if (!user?.id) return;
+  setLoading(true);
+  try {
+    // ✅ Busca todas as batidas existentes
+    const { data } = await http.get("/batidas/", { params: { skip: 0 } });
+
+    // ✅ Filtra apenas as batidas do usuário logado
+    const minhasBatidas = (data.batidas || []).filter(
+      (b) => b.id_usuario === user.id
+    );
+
+    // ✅ Agrupa para exibição no calendário
+    const agrupadas = agruparPorDia(minhasBatidas);
+    setRegistros(agrupadas);
+  } catch (error) {
+    console.error("Erro ao carregar batidas:", error);
+    Swal.fire({
+      icon: "error",
+      title: "Erro ao buscar registros",
+      text: "Não foi possível carregar suas batidas.",
+    });
+  } finally {
+    setLoading(false);
+  }
+}, [user]);
+
+
   useEffect(() => {
     carregarBatidas();
-  }, []);
+  }, [carregarBatidas]);
 
-  const carregarBatidas = async () => {
-    setLoading(true);
-    try {
-      const batidas = await getBatidas();
-      const agrupadas = agruparPorDia(batidas);
-      setRegistros(agrupadas);
-    } catch (e) {
-      console.error("Erro ao carregar batidas:", e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Função auxiliar para organizar por dia
+  // 🔧 Funções auxiliares de processamento
   const agruparPorDia = (batidas) => {
-    const registrosMap = {};
-
+    const map = {};
     batidas.forEach((b) => {
       const data = new Date(b.data_batida);
       const dataStr = data.toLocaleDateString("pt-BR");
 
-      if (!registrosMap[dataStr]) {
-        registrosMap[dataStr] = {
+      if (!map[dataStr]) {
+        map[dataStr] = {
           data: dataStr,
           batidas: [],
           horasTrabalhadas: "00:00",
           horasPrevistas: "08:00",
           bancoHoras: "00:00",
           status: "incompleto",
-          observacao: "",
         };
       }
-
-      registrosMap[dataStr].batidas.push(
+      map[dataStr].batidas.push(
         data.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
       );
     });
 
-    // Ordena e calcula horas
-    Object.values(registrosMap).forEach((r) => {
+    Object.values(map).forEach((r) => {
       r.batidas.sort();
       const total = calcularHoras(r.batidas);
       r.horasTrabalhadas = total;
@@ -85,39 +120,9 @@ function PontosBatidos() {
       r.status = definirStatus(r);
     });
 
-    return Object.values(registrosMap);
+    return Object.values(map);
   };
 
-  const calcularHoras = (batidas) => {
-    if (batidas.length < 2) return "00:00";
-    let totalMinutos = 0;
-
-    for (let i = 0; i < batidas.length; i += 2) {
-      if (batidas[i + 1]) {
-        const entrada = parseHora(batidas[i]);
-        const saida = parseHora(batidas[i + 1]);
-        totalMinutos += saida - entrada;
-      }
-    }
-    return formatarMinutos(totalMinutos);
-  };
-
-  const calcularBanco = (trabalhadas, previstas) => {
-    const t = toMin(trabalhadas);
-    const p = toMin(previstas);
-    const saldo = t - p;
-    return (saldo >= 0 ? "+" : "") + formatarMinutos(saldo);
-  };
-
-  const definirStatus = (r) => {
-    if (r.batidas.length === 0) return "sem-registro";
-    if (r.batidas.length < 4) return "incompleto";
-    if (r.bancoHoras.startsWith("+")) return "positivo";
-    if (r.bancoHoras.startsWith("-")) return "negativo";
-    return "completo";
-  };
-
-  // Helpers
   const parseHora = (str) => {
     const [h, m] = str.split(":").map(Number);
     return h * 60 + m;
@@ -128,35 +133,55 @@ function PontosBatidos() {
     const m = Math.abs(min) % 60;
     return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
   };
+  const calcularHoras = (batidas) => {
+    if (batidas.length < 2) return "00:00";
+    let totalMin = 0;
+    for (let i = 0; i < batidas.length; i += 2) {
+      if (batidas[i + 1]) {
+        totalMin += parseHora(batidas[i + 1]) - parseHora(batidas[i]);
+      }
+    }
+    return formatarMinutos(totalMin);
+  };
+  const calcularBanco = (trabalhadas, previstas) => {
+    const saldo = toMin(trabalhadas) - toMin(previstas);
+    return (saldo >= 0 ? "+" : "") + formatarMinutos(saldo);
+  };
+  const definirStatus = (r) => {
+    if (r.batidas.length === 0) return "sem-registro";
+    if (r.batidas.length < 4) return "incompleto";
+    if (r.bancoHoras.startsWith("+")) return "positivo";
+    if (r.bancoHoras.startsWith("-")) return "negativo";
+    return "completo";
+  };
 
   const formatDate = (date) => date.toLocaleDateString("pt-BR");
+
   const detalheDia = useMemo(() => {
     const dataStr = formatDate(selectedDate);
     return registros.find((r) => r.data === dataStr) || null;
   }, [selectedDate, registros]);
 
   const getDayStatus = (date) => {
-    const dataStr = formatDate(date);
-    const registro = registros.find((r) => r.data === dataStr);
-    return registro ? registro.status : "sem-registro";
+    const r = registros.find((r) => r.data === formatDate(date));
+    return r ? r.status : "sem-registro";
   };
 
   const tileContent = ({ date, view }) => {
     if (view !== "month") return null;
     const status = getDayStatus(date);
     const isToday = formatDate(date) === formatDate(new Date());
-
     return (
       <div className="d-flex justify-content-center mt-1">
         {isToday && (
           <div
-            className="dot-indicator bg-primary"
-            style={{ width: "4px", height: "4px", borderRadius: "50%" }}
+            className="bg-primary rounded-circle"
+            style={{ width: 4, height: 4 }}
           ></div>
         )}
         {status !== "sem-registro" && (
           <div
-            className={`dot-indicator ${
+            className={`rounded-circle ${
               status === "completo"
                 ? "bg-success"
                 : status === "positivo"
@@ -165,12 +190,7 @@ function PontosBatidos() {
                 ? "bg-warning"
                 : "bg-danger"
             }`}
-            style={{
-              width: "6px",
-              height: "6px",
-              borderRadius: "50%",
-              marginLeft: "2px",
-            }}
+            style={{ width: 6, height: 6, marginLeft: 2 }}
           ></div>
         )}
       </div>
@@ -179,19 +199,59 @@ function PontosBatidos() {
 
   const tileClassName = ({ date, view }) => {
     if (view !== "month") return "";
-    const isToday = formatDate(date) === formatDate(new Date());
     const status = getDayStatus(date);
-
-    let classes = [];
-    if (isToday) classes.push("border border-primary border-2");
-    if (status !== "sem-registro") classes.push("has-registry");
-    return classes.join(" ");
+    const isToday = formatDate(date) === formatDate(new Date());
+    return [
+      isToday ? "border border-primary border-2" : "",
+      status !== "sem-registro" ? "has-registry" : "",
+    ].join(" ");
   };
+
+  // 🔽 Justificativa
+const enviarJustificativa = async () => {
+  try {
+    const dataFormatada = detalheDia
+      ? detalheDia.data.split("/").reverse().join("-") + " 13:00"
+      : formatDate(selectedDate).split("/").reverse().join("-") + " 13:00";
+
+    // Monta os parâmetros conforme o backend espera
+    const params = new URLSearchParams({
+      data_requerida: dataFormatada,
+      texto: motivo || "Sem descrição",
+    });
+
+    const formData = new FormData();
+    if (anexo) formData.append("file", anexo);
+
+    await http.post(`/justificativas/?${params.toString()}`, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    Swal.fire({
+      icon: "success",
+      title: "Justificativa enviada!",
+      text: "Sua justificativa foi registrada e aguarda aprovação do gestor.",
+      confirmButtonColor: "#00c9a7",
+    });
+
+    setShowJustModal(false);
+    setMotivo("");
+    setAnexo(null);
+  } catch (error) {
+    console.error("Erro ao enviar justificativa:", error.response?.data || error);
+    Swal.fire({
+      icon: "error",
+      title: "Erro ao enviar justificativa",
+      text: error.response?.data?.detail || "Falha ao enviar justificativa.",
+      confirmButtonColor: "#f44336",
+    });
+  }
+};
 
   const handleDownload = async () => {
     setBaixando(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((r) => setTimeout(r, 1500));
       Swal.fire({
         icon: "success",
         title: "Relatório baixado com sucesso!",
@@ -201,7 +261,6 @@ function PontosBatidos() {
       Swal.fire({
         icon: "error",
         title: "Erro ao baixar relatório!",
-        confirmButtonColor: "#f44336",
       });
     } finally {
       setBaixando(false);
@@ -223,78 +282,41 @@ function PontosBatidos() {
     }
   };
 
-  const enviarJustificativa = async () => {
-    try {
-      const formData = new FormData();
-      formData.append(
-        "data",
-        detalheDia ? detalheDia.data : formatDate(selectedDate)
-      );
-      formData.append("tipo", tipo);
-      formData.append("motivo", motivo);
-      if (anexo) formData.append("anexo", anexo);
-
-      await http.post("/justificativas", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      setShowJustModal(false);
-      Swal.fire({
-        icon: "success",
-        title: "Justificativa enviada!",
-        text: "Sua justificativa foi registrada e aguarda aprovação do gestor.",
-        confirmButtonColor: "#00c9a7",
-      });
-    } catch (err) {
-      console.error(err);
-      Swal.fire({
-        icon: "error",
-        title: "Erro ao enviar justificativa.",
-        confirmButtonColor: "#f44336",
-      });
-    }
-  };
+  // 🔄 Loading de usuário
+  if (loadingUser || !user) {
+    return (
+      <div className="d-flex justify-content-center align-items-center vh-100 bg-light">
+        <div className="text-center">
+          <div className="spinner-border text-primary mb-3" role="status" />
+          <p className="text-muted">Carregando informações do usuário...</p>
+        </div>
+      </div>
+    );
+  }
 
   // --- JSX ---
   return (
     <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3 bg-light">
       {/* Header */}
-      <div className="w-100 mb-3">
-        <div className="d-flex align-items-center">
-          <button
-            className="btn btn-outline-secondary btn-sm me-3"
-            onClick={() => navigate(-1)}
-          >
-            <ArrowLeft size={18} className="me-2" />
-            <span className="d-none d-sm-inline">Voltar</span>
-          </button>
-          <div>
-            <h2 className="fw-bold mb-0 d-flex align-items-center">
-              <CalendarDays size={24} className="text-primary me-2" />
-              Pontos Batidos
-            </h2>
-            <small className="text-muted">
-              Controle e acompanhamento de registros
-            </small>
-          </div>
+      <div className="w-100 mb-3 d-flex align-items-center">
+        <button className="btn btn-outline-secondary btn-sm me-3" onClick={() => navigate(-1)}>
+          <ArrowLeft size={18} className="me-2" />
+          <span className="d-none d-sm-inline">Voltar</span>
+        </button>
+        <div>
+          <h2 className="fw-bold mb-0 d-flex align-items-center">
+            <CalendarDays size={24} className="text-primary me-2" /> Pontos Batidos
+          </h2>
+          <small className="text-muted">Controle e acompanhamento de registros</small>
         </div>
       </div>
 
-      {/* Conteúdo principal */}
       <div className="row justify-content-center flex-grow-1">
         <div className="col-12 col-xl-10">
           <div className="row g-3 g-md-4">
             {/* Calendário */}
             <div className="col-12 col-lg-6">
               <div className="card border-0 shadow-sm h-100">
-                <div className="card-header bg-white border-0">
-                  <div className="d-flex justify-content-between align-items-center">
-                    <h5 className="fw-bold mb-0 d-flex align-items-center">
-                      <CalendarDays size={18} className="me-2" />
-                      Calendário
-                    </h5>
-                  </div>
-                </div>
                 <div className="card-body">
                   {loading ? (
                     <div className="text-center py-5">
@@ -307,11 +329,9 @@ function PontosBatidos() {
                       value={selectedDate}
                       locale="pt-BR"
                       defaultView="month"
-                      showNavigation={true}
+                      showNavigation
                       activeStartDate={activeStartDate}
-                      onActiveStartDateChange={({ activeStartDate }) =>
-                        setActiveStartDate(activeStartDate)
-                      }
+                      onActiveStartDateChange={({ activeStartDate }) => setActiveStartDate(activeStartDate)}
                       tileContent={tileContent}
                       tileClassName={tileClassName}
                       className="w-100 border-0"
@@ -321,15 +341,9 @@ function PontosBatidos() {
               </div>
             </div>
 
-            {/* Detalhes do Dia */}
+            {/* Detalhes */}
             <div className="col-12 col-lg-6">
               <div className="card border-0 shadow-sm h-100">
-                <div className="card-header bg-white border-0">
-                  <h5 className="fw-bold mb-0 d-flex align-items-center">
-                    <Clock size={18} className="me-2" />
-                    Detalhes do Dia - {formatDate(selectedDate)}
-                  </h5>
-                </div>
                 <div className="card-body">
                   {detalheDia ? (
                     <>
@@ -340,40 +354,28 @@ function PontosBatidos() {
                         </span>
                       </div>
 
-                      {/* Batidas */}
-                      <div className="mb-4">
-                        <h6 className="fw-bold mb-3">Batidas de Ponto</h6>
-                        <div className="d-flex flex-wrap gap-2">
-                          {detalheDia.batidas.map((hora, index) => (
-                            <div key={index} className="d-flex align-items-center">
-                              <span className="badge bg-secondary me-1">
-                                {index + 1}
-                              </span>
-                              <span className="badge bg-primary p-2">{hora}</span>
-                            </div>
-                          ))}
-                        </div>
+                      <h6 className="fw-bold mb-3">Batidas de Ponto</h6>
+                      <div className="d-flex flex-wrap gap-2 mb-3">
+                        {detalheDia.batidas.map((hora, i) => (
+                          <span key={i} className="badge bg-primary p-2">{hora}</span>
+                        ))}
                       </div>
 
-                      {/* Resumo */}
-                      <div className="row g-3 mb-3">
+                      <div className="row g-3 mb-3 text-center">
                         <div className="col-6">
-                          <div className="text-center p-2 bg-light rounded">
+                          <div className="p-2 bg-light rounded">
                             <small className="text-muted d-block">Trabalhadas</small>
-                            <strong className="text-primary">
-                              {detalheDia.horasTrabalhadas}
-                            </strong>
+                            <strong className="text-primary">{detalheDia.horasTrabalhadas}</strong>
                           </div>
                         </div>
                         <div className="col-6">
-                          <div className="text-center p-2 bg-light rounded">
+                          <div className="p-2 bg-light rounded">
                             <small className="text-muted d-block">Previstas</small>
                             <strong>{detalheDia.horasPrevistas}</strong>
                           </div>
                         </div>
                       </div>
 
-                      {/* Banco de Horas */}
                       <div
                         className={`text-center p-2 rounded ${
                           detalheDia.bancoHoras.startsWith("+")
@@ -387,17 +389,10 @@ function PontosBatidos() {
                         <strong>{detalheDia.bancoHoras}</strong>
                       </div>
 
-                      {/* Botão Justificar */}
-                      {["incompleto", "sem-registro"].includes(
-                        detalheDia.status
-                      ) && (
+                      {["incompleto", "sem-registro"].includes(detalheDia.status) && (
                         <div className="text-center mt-4">
-                          <button
-                            className="btn btn-outline-primary"
-                            onClick={() => setShowJustModal(true)}
-                          >
-                            <AlertCircle size={18} className="me-2" />
-                            Justificar Ponto
+                          <button className="btn btn-outline-primary" onClick={() => setShowJustModal(true)}>
+                            <AlertCircle size={18} className="me-2" /> Justificar Ponto
                           </button>
                         </div>
                       )}
@@ -413,7 +408,6 @@ function PontosBatidos() {
             </div>
           </div>
 
-          {/* Botões de Ação */}
           <div className="text-center mt-4 d-flex flex-column gap-2 align-items-center">
             <button
               className="btn btn-primary btn-lg px-4"
@@ -422,21 +416,15 @@ function PontosBatidos() {
             >
               {baixando ? (
                 <>
-                  <div
-                    className="spinner-border spinner-border-sm me-2"
-                    role="status"
-                  ></div>
+                  <div className="spinner-border spinner-border-sm me-2" role="status" />
                   Gerando Relatório...
                 </>
               ) : (
                 <>
-                  <Download size={20} className="me-2" />
-                  Baixar Relatório Completo
+                  <Download size={20} className="me-2" /> Baixar Relatório Completo
                 </>
               )}
             </button>
-
-            {/* Botão Global */}
             <button
               className="btn btn-outline-secondary btn-sm"
               onClick={() => setShowJustModal(true)}
@@ -447,7 +435,7 @@ function PontosBatidos() {
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal Justificativa */}
       <Modal show={showJustModal} onHide={() => setShowJustModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Justificar Ponto</Modal.Title>

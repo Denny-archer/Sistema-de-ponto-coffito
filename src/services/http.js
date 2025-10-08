@@ -25,3 +25,13 @@ http.interceptors.request.use((config) => {
   if (t) config.headers.Authorization = `Bearer ${t}`;
   return config;
 });
+http.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      clearToken();
+      window.location.href = "/login"; // redireciona pro login
+    }
+    return Promise.reject(error);
+  }
+);

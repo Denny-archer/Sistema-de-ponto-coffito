@@ -4,60 +4,133 @@ import { Table, Modal, Button, Form, Row, Col, Badge, InputGroup, Spinner } from
 import { Search, Eye, CheckCircle2, XCircle, Download, Filter } from "lucide-react";
 import Swal from "sweetalert2";
 import "sweetalert2/dist/sweetalert2.min.css";
-
-/**
- * ===== Integração com API =====
- * Ajuste os imports conforme seu projeto. O arquivo http.js deve exportar { http } (axios instance)
- */
-let http = null;
-try {
-  // tente buscar como named export
-  // eslint-disable-next-line @typescript-eslint/no-var-requires
-  http = require("../services/http").http;
-} catch (e) {
-  try {
-    // fallback: default export "api"
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    http = require("../services/http").default || require("../services/http").api;
-  } catch (_) {
-    console.warn("Não foi possível importar http do seu projeto. Substitua pelas suas chamadas axios.");
-  }
-}
+import { http } from "../../services/http";
 
 const api = {
-  async listJustificativas({ status = "pendente", q = "", tipo = "", dataIni = "", dataFim = "" }) {
+  // 🔹 Lista justificativas com filtros corrigidos para o backend real
+  async listJustificativas(filtros = {}) {
     if (!http) throw new Error("Instância HTTP ausente");
+
     const params = new URLSearchParams();
-    if (status) params.append("status", status);
-    if (q) params.append("q", q);
-    if (tipo) params.append("tipo", tipo);
-    if (dataIni) params.append("data_ini", dataIni);
-    if (dataFim) params.append("data_fim", dataFim);
-    const { data } = await http.get(`/justificativas?${params.toString()}`);
-    return data?.items || data || [];
+
+    // 🔸 Filtros que o backend suporta
+    if (filtros.requerente?.trim())
+      params.append("requerente", filtros.requerente.trim());
+    
+    // 🔸 O backend parece usar status como string, então ajustamos
+    if (filtros.status) {
+      // Converte valores numéricos do frontend para strings do backend
+      const statusMap = {
+        "1": "Pendente",
+        "2": "Aprovada", 
+        "3": "Reprovada"
+      };
+      params.append("status", statusMap[filtros.status] || filtros.status);
+    }
+    
+    // 🔸 Filtro por data - ajustando para o formato do backend
+    if (filtros.dataIni) params.append("data_ini", filtros.dataIni);
+    if (filtros.dataFim) params.append("data_fim", filtros.dataFim);
+
+    params.append("skip", filtros.skip || 0);
+    params.append("sort", filtros.sort || false);
+
+    const queryString = params.toString();
+    console.log("🔍 Chamando API com filtros:", queryString);
+
+    try {
+      const { data } = await http.get(
+        `/justificativas/${queryString ? "?" + queryString : ""}`
+      );
+
+      const rawList = data?.justificativas || [];
+
+      // 🔸 Mapeamento CORRETO para o formato do frontend
+      return rawList.map((j) => ({
+        id: j.id,
+        colaborador_nome: j.requerente,
+        data_referencia: j.data_requerida
+          ? new Date(j.data_requerida).toLocaleDateString("pt-BR", {
+              day: "2-digit",
+              month: "2-digit",
+              year: "numeric",
+            })
+          : "-",
+        // 🔹 Como o backend não envia 'tipo', usamos um padrão ou inferimos do texto
+        tipo: this.inferirTipo(j.texto) || "outro",
+        motivo: j.texto,
+        anexo_url: j.nome_anexo ? `/uploads/${j.nome_anexo}` : null,
+        // 🔹 Convertendo status string para o formato do frontend
+        status: j.status?.toLowerCase() || "pendente",
+        validador: j.validador,
+        criado_em: j.criado_em,
+        atualizado_em: j.atualizado_em
+      }));
+    } catch (error) {
+      console.error("❌ Erro na API:", error);
+      throw error;
+    }
   },
-  async patchJustificativa(id, body) {
-    if (!http) throw new Error("Instância HTTP ausente");
-    const { data } = await http.patch(`/justificativas/${id}`, body);
+
+  // 🔹 Função para inferir tipo baseado no texto (fallback)
+  inferirTipo(texto) {
+    if (!texto) return "outro";
+    
+    const text = texto.toLowerCase();
+    if (text.includes("esquec") || text.includes("esqueci")) return "esquecimento";
+    if (text.includes("atras") || text.includes("atrasei")) return "atraso";
+    if (text.includes("ausên") || text.includes("falta")) return "ausencia";
+    return "outro";
+  },
+
+  // 🔹 PATCH para aprovar/reprovar - ajustado para o backend real
+  async patchJustificativa(id, resposta, motivo = null) {
+    // Converte resposta numérica para string que o backend espera
+    const statusMap = {
+      1: "Pendente",
+      2: "Aprovada",
+      3: "Reprovada"
+    };
+    
+    const payload = {
+      status: statusMap[resposta] || "Pendente"
+    };
+    
+    if (motivo) {
+      payload.motivo_reprovacao = motivo;
+    }
+
+    console.log("📤 Enviando PATCH:", { id, payload });
+
+    const { data } = await http.patch(
+      `/justificativas/${id}`,
+      payload,
+      {
+        headers: { "Content-Type": "application/json" },
+      }
+    );
     return data;
   },
+
   async patchPonto(pontoId, body) {
-    if (!http) throw new Error("Instância HTTP ausente");
     const { data } = await http.patch(`/pontos/${pontoId}`, body);
     return data;
   },
 };
 
-/**
- * Utilitários simples de UI
- */
+// 🔹 Componente StatusPill atualizado para trabalhar com strings
 const StatusPill = ({ value }) => {
   const map = {
-    pendente: "warning",
-    aprovada: "success",
-    reprovada: "danger",
+    pendente: { variant: "warning", label: "Pendente" },
+    aprovada: { variant: "success", label: "Aprovada" },
+    reprovada: { variant: "danger", label: "Reprovada" },
   };
-  return <Badge bg={map[value] || "secondary"} className="text-capitalize">{value}</Badge>;
+  
+  // Converte para lowercase para garantir compatibilidade
+  const normalizedValue = value?.toLowerCase() || "pendente";
+  const { variant, label } = map[normalizedValue] || { variant: "secondary", label: "Desconhecido" };
+  
+  return <Badge bg={variant} className="px-3 py-2 text-capitalize">{label}</Badge>;
 };
 
 const TipoPill = ({ value }) => {
@@ -70,125 +143,191 @@ const TipoPill = ({ value }) => {
   return <Badge bg={map[value] || "primary"} className="text-capitalize">{value || "-"}</Badge>;
 };
 
-/**
- * ===== Página: Lista de Justificativas =====
- */
 export default function GestorJustificativas() {
   const navigate = useNavigate();
 
-  // Filtros
-  const [status, setStatus] = useState("pendente");
+  // Estados dos filtros
+  const [status, setStatus] = useState("");
   const [q, setQ] = useState("");
   const [tipo, setTipo] = useState("");
   const [dataIni, setDataIni] = useState("");
   const [dataFim, setDataFim] = useState("");
 
-  // Dados
   const [itens, setItens] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  // Modal
   const [show, setShow] = useState(false);
   const [current, setCurrent] = useState(null);
+  const [showHistorico, setShowHistorico] = useState(false);
+  const [historico, setHistorico] = useState(null);
 
-  const filtros = useMemo(() => ({ status, q, tipo, dataIni, dataFim }), [status, q, tipo, dataIni, dataFim]);
+  // Filtros otimizados
+  const filtros = useMemo(() => ({ 
+    requerente: q, 
+    status: status,
+    tipo: tipo,
+    dataIni: dataIni,
+    dataFim: dataFim
+  }), [q, status, tipo, dataIni, dataFim]);
 
+  // Carregar justificativas
   useEffect(() => {
-    let ignore = false;
-    (async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const data = await api.listJustificativas(filtros);
-        if (!ignore) setItens(data);
-      } catch (e) {
-        console.error(e);
-        if (!ignore) setError("Falha ao carregar justificativas");
-      } finally {
-        if (!ignore) setLoading(false);
-      }
-    })();
-    return () => (ignore = true);
+    const delayDebounce = setTimeout(() => {
+      carregar();
+    }, 500);
+
+    return () => clearTimeout(delayDebounce);
   }, [filtros]);
 
-  const openModal = (item) => {
-    setCurrent(item);
-    setShow(true);
-  };
-  const closeModal = () => {
-    setShow(false);
-    setCurrent(null);
+  const carregar = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      console.log("🔄 Carregando com filtros:", filtros);
+      const data = await api.listJustificativas(filtros);
+      setItens(data);
+    } catch (err) {
+      console.error("❌ Erro ao carregar:", err);
+      setError("Falha ao carregar justificativas. Tente novamente.");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleAprovar = async (ajuste) => {
-    if (!current) return;
+  // Limpar filtros
+  const limparFiltros = () => {
+    setStatus("");
+    setQ("");
+    setTipo("");
+    setDataIni("");
+    setDataFim("");
+  };
 
+  // Ações rápidas
+  const handleAprovarRapido = async (item) => {
     const confirm = await Swal.fire({
       icon: "question",
-      title: "Aprovar justificativa?",
-      text: "Isso atualizará o status e (opcionalmente) ajustará o ponto.",
+      title: `Aprovar justificativa #${item.id}?`,
+      text: `Colaborador: ${item.colaborador_nome}`,
       showCancelButton: true,
       confirmButtonText: "Sim, aprovar",
       cancelButtonText: "Cancelar",
-      customClass: { confirmButton: "btn btn-success", cancelButton: "btn btn-outline-secondary ms-2" },
+      customClass: {
+        confirmButton: "btn btn-success",
+        cancelButton: "btn btn-outline-secondary ms-2",
+      },
       buttonsStyling: false,
     });
     if (!confirm.isConfirmed) return;
 
     try {
-      // 1) Atualiza justificativa
-      await api.patchJustificativa(current.id, { status: "aprovada" });
-
-      // 2) Se houver campos de ajuste, envia PATCH de ponto
-      if (ajuste && (ajuste.entrada || ajuste.almoco || ajuste.retorno || ajuste.saida)) {
-        await api.patchPonto(current.pontoId, {
-          entrada: ajuste.entrada || null,
-          almoco: ajuste.almoco || null,
-          retorno: ajuste.retorno || null,
-          saida: ajuste.saida || null,
-          observacao: `Ajustado via aprovação de justificativa #${current.id}`,
-        });
-      }
-
-      // 3) Feedback & refresh
-      await Swal.fire({ icon: "success", title: "Aprovada!", timer: 1400, showConfirmButton: false });
-      closeModal();
-      // força recarga da lista mantendo filtros
-      const data = await api.listJustificativas(filtros);
-      setItens(data);
+      await api.patchJustificativa(item.id, 2);
+      await carregar();
+      Swal.fire({
+        toast: true,
+        position: "bottom-end",
+        icon: "success",
+        title: "Justificativa aprovada!",
+        showConfirmButton: false,
+        timer: 2000,
+      });
     } catch (e) {
       console.error(e);
-      Swal.fire({ icon: "error", title: "Erro ao aprovar", text: e?.message || "" });
+      Swal.fire({ 
+        icon: "error", 
+        title: "Erro ao aprovar", 
+        text: e?.response?.data?.detail || e?.message || "Erro desconhecido" 
+      });
     }
   };
 
-  const handleReprovar = async () => {
-    if (!current) return;
+  const handleReprovarRapido = async (item) => {
     const confirm = await Swal.fire({
       icon: "warning",
-      title: "Reprovar justificativa?",
+      title: `Reprovar justificativa #${item.id}?`,
       input: "textarea",
       inputLabel: "Motivo (opcional)",
       showCancelButton: true,
       confirmButtonText: "Sim, reprovar",
       cancelButtonText: "Cancelar",
-      customClass: { confirmButton: "btn btn-danger", cancelButton: "btn btn-outline-secondary ms-2" },
+      customClass: {
+        confirmButton: "btn btn-danger",
+        cancelButton: "btn btn-outline-secondary ms-2",
+      },
       buttonsStyling: false,
     });
     if (!confirm.isConfirmed) return;
 
     try {
-      await api.patchJustificativa(current.id, { status: "reprovada", motivo_reprovacao: confirm.value || null });
-      await Swal.fire({ icon: "success", title: "Reprovada", timer: 1200, showConfirmButton: false });
-      closeModal();
-      const data = await api.listJustificativas(filtros);
-      setItens(data);
+      await api.patchJustificativa(item.id, 3, confirm.value || null);
+      await carregar();
+      Swal.fire({
+        toast: true,
+        position: "bottom-end",
+        icon: "info",
+        title: "Justificativa reprovada",
+        showConfirmButton: false,
+        timer: 2000,
+      });
     } catch (e) {
       console.error(e);
-      Swal.fire({ icon: "error", title: "Erro ao reprovar", text: e?.message || "" });
+      Swal.fire({ 
+        icon: "error", 
+        title: "Erro ao reprovar", 
+        text: e?.response?.data?.detail || e?.message || "Erro desconhecido" 
+      });
     }
   };
+
+  // Modal de detalhes
+  const openModal = (item) => {
+    setCurrent(item);
+    setShow(true);
+  };
+
+  const closeModal = () => {
+    setShow(false);
+    setCurrent(null);
+  };
+
+  // Histórico
+  const openHistorico = async (item) => {
+    try {
+      const logsSimulados = [
+        { 
+          acao: "Criada", 
+          usuario: item.colaborador_nome, 
+          data: item.criado_em || new Date().toISOString() 
+        },
+        ...(item.status !== "pendente" && item.atualizado_em
+          ? [
+              {
+                acao: item.status === "aprovada" ? "Aprovada" : "Reprovada",
+                usuario: item.validador || "Gestor",
+                data: item.atualizado_em,
+              },
+            ]
+          : []),
+      ];
+
+      setHistorico({ id: item.id, logs: logsSimulados });
+      setShowHistorico(true);
+    } catch (e) {
+      console.error("Erro ao carregar histórico:", e);
+      Swal.fire({ icon: "error", title: "Erro ao carregar histórico" });
+    }
+  };
+
+  const closeHistorico = () => {
+    setShowHistorico(false);
+    setHistorico(null);
+  };
+
+  // Contador de filtros ativos
+  const filtrosAtivos = Object.values(filtros).filter(val => 
+    val !== undefined && val !== null && val !== ''
+  ).length;
 
   return (
     <div className="container-fluid py-3">
@@ -197,29 +336,48 @@ export default function GestorJustificativas() {
           <h2 className="mb-1">Justificativas</h2>
           <small className="text-muted">Gerencie solicitações de ajuste/ausência dos colaboradores</small>
         </div>
-        <Button variant="outline-secondary" onClick={() => navigate(-1)}>Voltar</Button>
+        <div>
+          <Button 
+            variant="outline-danger" 
+            size="sm" 
+            onClick={limparFiltros} 
+            className="me-2"
+            disabled={filtrosAtivos === 0}
+          >
+            Limpar Filtros ({filtrosAtivos})
+          </Button>
+          <Button variant="outline-secondary" onClick={() => navigate(-1)}>
+            Voltar
+          </Button>
+        </div>
       </div>
 
       {/* Filtros */}
       <div className="p-3 border rounded-3 bg-white mb-3">
         <Row className="g-2 align-items-end">
-          <Col md={4}>
-            <Form.Label>Buscar</Form.Label>
+          <Col md={3}>
+            <Form.Label>Buscar Colaborador</Form.Label>
             <InputGroup>
               <InputGroup.Text><Search size={16} /></InputGroup.Text>
-              <Form.Control value={q} onChange={(e) => setQ(e.target.value)} placeholder="Nome, motivo..." />
+              <Form.Control 
+                value={q} 
+                onChange={(e) => setQ(e.target.value)} 
+                placeholder="Nome do colaborador..." 
+              />
             </InputGroup>
           </Col>
-          <Col md={3}>
+          
+          <Col md={2}>
             <Form.Label>Status</Form.Label>
             <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">Todos</option>
-              <option value="pendente">Pendente</option>
-              <option value="aprovada">Aprovada</option>
-              <option value="reprovada">Reprovada</option>
+              <option value="1">Pendente</option>
+              <option value="2">Aprovada</option>
+              <option value="3">Reprovada</option>
             </Form.Select>
           </Col>
-          <Col md={3}>
+          
+          <Col md={2}>
             <Form.Label>Tipo</Form.Label>
             <Form.Select value={tipo} onChange={(e) => setTipo(e.target.value)}>
               <option value="">Todos</option>
@@ -229,17 +387,27 @@ export default function GestorJustificativas() {
               <option value="outro">Outro</option>
             </Form.Select>
           </Col>
-          <Col md={2} className="d-flex align-items-center gap-2 text-muted">
-            <Filter size={18} />
-            <span className="small">Filtro por período</span>
-          </Col>
+          
           <Col md={2}>
-            <Form.Label>De</Form.Label>
-            <Form.Control type="date" value={dataIni} onChange={(e) => setDataIni(e.target.value)} />
+            <Form.Label>Data Início</Form.Label>
+            <Form.Control 
+              type="date" 
+              value={dataIni} 
+              onChange={(e) => setDataIni(e.target.value)} 
+            />
           </Col>
+          
           <Col md={2}>
-            <Form.Label>Até</Form.Label>
-            <Form.Control type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)} />
+            <Form.Label>Data Fim</Form.Label>
+            <Form.Control 
+              type="date" 
+              value={dataFim} 
+              onChange={(e) => setDataFim(e.target.value)} 
+            />
+          </Col>
+          
+          <Col md={1} className="d-flex align-items-center justify-content-center">
+            <Filter size={18} className="text-muted" />
           </Col>
         </Row>
       </div>
@@ -249,10 +417,15 @@ export default function GestorJustificativas() {
         {loading ? (
           <div className="d-flex align-items-center justify-content-center py-5">
             <Spinner animation="border" />
-            <span className="ms-2">Carregando...</span>
+            <span className="ms-2">Carregando justificativas...</span>
           </div>
         ) : error ? (
-          <div className="p-4 text-danger">{error}</div>
+          <div className="p-4 text-center text-danger">
+            <p>{error}</p>
+            <Button variant="outline-primary" onClick={carregar}>
+              Tentar Novamente
+            </Button>
+          </div>
         ) : (
           <Table hover responsive className="mb-0 align-middle">
             <thead className="table-light">
@@ -267,113 +440,171 @@ export default function GestorJustificativas() {
               </tr>
             </thead>
             <tbody>
-              {itens.length === 0 && (
+              {itens.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-4 text-muted">Nenhuma justificativa encontrada</td>
+                  <td colSpan={7} className="text-center py-4 text-muted">
+                    {filtrosAtivos > 0 
+                      ? "Nenhuma justificativa encontrada com os filtros aplicados" 
+                      : "Nenhuma justificativa cadastrada"
+                    }
+                  </td>
                 </tr>
+              ) : (
+                itens.map((j) => (
+                  <tr key={j.id}>
+                    <td>
+                      <div className="fw-semibold">{j.colaborador_nome}</div>
+                      <small className="text-muted">{j.departamento || "—"}</small>
+                    </td>
+                    <td>{j.data_referencia}</td>
+                    <td><TipoPill value={j.tipo} /></td>
+                    <td className="text-truncate" style={{ maxWidth: 360 }} title={j.motivo}>
+                      {j.motivo}
+                    </td>
+                    <td>
+                      {j.anexo_url ? (
+                        <a
+                          href={j.anexo_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn btn-sm btn-outline-secondary"
+                        >
+                          <Download size={14} className="me-1" /> Ver arquivo
+                        </a>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td><StatusPill value={j.status} /></td>
+                    <td className="text-end">
+                      {j.status === "pendente" ? (
+                        <>
+                          <Button
+                            size="sm"
+                            variant="success"
+                            className="me-2"
+                            onClick={() => handleAprovarRapido(j)}
+                          >
+                            <CheckCircle2 size={16} className="me-1" /> Aprovar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="danger"
+                            className="me-2"
+                            onClick={() => handleReprovarRapido(j)}
+                          >
+                            <XCircle size={16} className="me-1" /> Reprovar
+                          </Button>
+                        </>
+                      ) : (
+                        <Button size="sm" variant="outline-secondary" disabled>
+                          {j.status === "aprovada" ? "Aprovada" : "Reprovada"}
+                        </Button>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline-primary"
+                        className="ms-2"
+                        onClick={() => openModal(j)}
+                      >
+                        <Eye size={16} className="me-1" /> Detalhes
+                      </Button>
+                    </td>
+                  </tr>
+                ))
               )}
-              {itens.map((j) => (
-                <tr key={j.id}>
-                  <td>
-                    <div className="fw-semibold">{j.colaborador?.nome || j.colaborador_nome}</div>
-                    <small className="text-muted">{j.colaborador?.departamento || j.departamento}</small>
-                  </td>
-                  <td>{j.data || j.data_referencia}</td>
-                  <td><TipoPill value={j.tipo} /></td>
-                  <td className="text-truncate" style={{maxWidth: 360}} title={j.motivo}>{j.motivo}</td>
-                  <td>
-                    {j.anexo_url ? (
-                      <a href={j.anexo_url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-secondary"><Download size={14} className="me-1"/>Arquivo</a>
-                    ) : <span className="text-muted">—</span>}
-                  </td>
-                  <td><StatusPill value={j.status} /></td>
-                  <td className="text-end">
-                    <Button size="sm" variant="outline-primary" onClick={() => openModal(j)}>
-                      <Eye size={16} className="me-1"/> Visualizar
-                    </Button>
-                  </td>
-                </tr>
-              ))}
             </tbody>
           </Table>
         )}
       </div>
 
-      {/* Modal Detalhes */}
-      <DetalheModal show={show} onHide={closeModal} item={current} onAprovar={handleAprovar} onReprovar={handleReprovar} />
+      {/* Modal de Detalhes */}
+      <Modal show={show} onHide={closeModal} size="lg" centered>
+        {current && (
+          <>
+            <Modal.Header closeButton>
+              <Modal.Title>Justificativa #{current.id}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              <Row>
+                <Col md={6}>
+                  <p><strong>Colaborador:</strong> {current.colaborador_nome}</p>
+                  <p><strong>Data Referência:</strong> {current.data_referencia}</p>
+                  <p><strong>Tipo:</strong> <TipoPill value={current.tipo} /></p>
+                </Col>
+                <Col md={6}>
+                  <p><strong>Status:</strong> <StatusPill value={current.status} /></p>
+                  <p><strong>Validador:</strong> {current.validador || "—"}</p>
+                  <p><strong>Última atualização:</strong> {current.atualizado_em ? new Date(current.atualizado_em).toLocaleString("pt-BR") : "—"}</p>
+                </Col>
+              </Row>
+              <hr />
+              <p><strong>Motivo:</strong></p>
+              <div className="border rounded p-3 bg-light">
+                {current.motivo}
+              </div>
+              {current.anexo_url && (
+                <div className="mt-3">
+                  <strong>Anexo:</strong>{" "}
+                  <a href={current.anexo_url} target="_blank" rel="noreferrer" className="btn btn-sm btn-outline-primary ms-2">
+                    <Download size={14} className="me-1" /> Baixar arquivo
+                  </a>
+                </div>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="outline-secondary" onClick={closeModal}>
+                Fechar
+              </Button>
+              {current.status === "pendente" && (
+                <>
+                  <Button variant="danger" onClick={() => handleReprovarRapido(current)}>
+                    <XCircle size={16} className="me-1" /> Reprovar
+                  </Button>
+                  <Button variant="success" onClick={() => handleAprovarRapido(current)}>
+                    <CheckCircle2 size={16} className="me-1" /> Aprovar
+                  </Button>
+                </>
+              )}
+            </Modal.Footer>
+          </>
+        )}
+      </Modal>
+
+      {/* Modal de Histórico */}
+      <Modal show={showHistorico} onHide={closeHistorico} size="md" centered>
+        {historico && (
+          <>
+            <Modal.Header closeButton>
+              <Modal.Title>Histórico - Justificativa #{historico.id}</Modal.Title>
+            </Modal.Header>
+            <Modal.Body>
+              {historico.logs && historico.logs.length > 0 ? (
+                <ul className="list-group">
+                  {historico.logs.map((log, i) => (
+                    <li key={i} className="list-group-item d-flex justify-content-between">
+                      <div>
+                        <strong>{log.acao}</strong><br />
+                        <small className="text-muted">{log.usuario}</small>
+                      </div>
+                      <span className="text-muted">
+                        {new Date(log.data).toLocaleString("pt-BR")}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted mb-0">Sem histórico registrado.</p>
+              )}
+            </Modal.Body>
+            <Modal.Footer>
+              <Button variant="outline-secondary" onClick={closeHistorico}>
+                Fechar
+              </Button>
+            </Modal.Footer>
+          </>
+        )}
+      </Modal>
     </div>
   );
 }
-
-function DetalheModal({ show, onHide, item, onAprovar, onReprovar }) {
-  const [entrada, setEntrada] = useState("");
-  const [almoco, setAlmoco] = useState("");
-  const [retorno, setRetorno] = useState("");
-  const [saida, setSaida] = useState("");
-
-  useEffect(() => {
-    if (!show) {
-      setEntrada("");
-      setAlmoco("");
-      setRetorno("");
-      setSaida("");
-    }
-  }, [show]);
-
-  if (!item) return null;
-
-  return (
-    <Modal show={show} onHide={onHide} size="lg" centered>
-      <Modal.Header closeButton>
-        <Modal.Title>Detalhes da Justificativa #{item.id}</Modal.Title>
-      </Modal.Header>
-      <Modal.Body>
-        <Row className="mb-3">
-          <Col md={8}>
-            <div className="mb-2"><strong>Colaborador:</strong> {item.colaborador?.nome || item.colaborador_nome}</div>
-            <div className="mb-2"><strong>Data:</strong> {item.data || item.data_referencia}</div>
-            <div className="mb-2"><strong>Tipo:</strong> <TipoPill value={item.tipo} /></div>
-            <div className="mb-2"><strong>Motivo:</strong><br/> {item.motivo || "—"}</div>
-            {item.anexo_url && (
-              <div className="mb-2">
-                <strong>Anexo:</strong> <a href={item.anexo_url} target="_blank" rel="noreferrer" className="ms-1">baixar</a>
-              </div>
-            )}
-          </Col>
-          <Col md={4}>
-            <div className="p-3 border rounded-3 bg-light">
-              <div className="fw-semibold mb-2">Ajustar ponto (opcional)</div>
-              <Form.Group className="mb-2">
-                <Form.Label>Entrada</Form.Label>
-                <Form.Control type="time" value={entrada} onChange={(e) => setEntrada(e.target.value)} />
-              </Form.Group>
-              <Form.Group className="mb-2">
-                <Form.Label>Saída p/ almoço</Form.Label>
-                <Form.Control type="time" value={almoco} onChange={(e) => setAlmoco(e.target.value)} />
-              </Form.Group>
-              <Form.Group className="mb-2">
-                <Form.Label>Retorno do almoço</Form.Label>
-                <Form.Control type="time" value={retorno} onChange={(e) => setRetorno(e.target.value)} />
-              </Form.Group>
-              <Form.Group>
-                <Form.Label>Saída</Form.Label>
-                <Form.Control type="time" value={saida} onChange={(e) => setSaida(e.target.value)} />
-              </Form.Group>
-              <small className="text-muted d-block mt-2">Se não preencher, nenhum horário será alterado.</small>
-            </div>
-          </Col>
-        </Row>
-      </Modal.Body>
-      <Modal.Footer>
-        <Button variant="outline-secondary" onClick={onHide}>Fechar</Button>
-        <Button variant="danger" onClick={onReprovar} className="ms-2">
-          <XCircle size={16} className="me-1"/> Reprovar
-        </Button>
-        <Button variant="success" onClick={() => onAprovar({ entrada, almoco, retorno, saida })} className="ms-2">
-          <CheckCircle2 size={16} className="me-1"/> Aprovar
-        </Button>
-      </Modal.Footer>
-    </Modal>
-  );
-}
-

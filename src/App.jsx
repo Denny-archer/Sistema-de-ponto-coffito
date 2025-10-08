@@ -1,11 +1,10 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
-
-// Auth
 import AuthProvider from "./context/AuthProvider";
+import UserProvider from "./context/UserProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
 
 // Layouts
-import AppLayoutGestor from "./components/AppLayoutGestor"; // gestor
+import AppLayoutGestor from "./components/AppLayoutGestor";
 
 // Páginas
 import Login from "./pages/login/login";
@@ -23,34 +22,36 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <Routes>
-          {/* públicas */}
-          <Route path="/login" element={<Login />} />
+        <UserProvider>
+          <Routes>
+            {/* públicas */}
+            <Route path="/login" element={<Login />} />
 
-          {/* privadas */}
-          <Route element={<ProtectedRoute />}>
-            {/* fluxo colaborador */}
-            <Route path="/home" element={<Home />} />
-            <Route path="/ponto" element={<Ponto />} />
-            <Route path="/selfie" element={<Selfie />} />
-            <Route path="/confirmacao" element={<Confirmacao />} />
-            <Route path="/pontos" element={<PontosBatidos />} />
+            {/* privadas */}
+            <Route element={<ProtectedRoute />}>
+              {/* fluxo colaborador */}
+              <Route path="/home" element={<Home />} />
+              <Route path="/ponto" element={<Ponto />} />
+              <Route path="/selfie" element={<Selfie />} />
+              <Route path="/confirmacao" element={<Confirmacao />} />
+              <Route path="/pontos" element={<PontosBatidos />} />
 
-            {/* fluxo gestor */}
-            <Route element={<AppLayoutGestor />}>
-              <Route path="/gestor" element={<DashboardGestor />} />
-              <Route path="/gestor/justificativas" element={<GestorJustificativas />} />
-              <Route path="/colaboradores" element={<Colaboradores />} />
-              <Route path="/folha" element={<Folha />} />
+              {/* fluxo gestor */}
+              <Route element={<AppLayoutGestor />}>
+                <Route path="/gestor" element={<DashboardGestor />} />
+                <Route path="/gestor/justificativas" element={<GestorJustificativas />} />
+                <Route path="/colaboradores" element={<Colaboradores />} />
+                <Route path="/folha" element={<Folha />} />
+              </Route>
+
+              {/* atalho raiz */}
+              <Route path="/" element={<Navigate to="/home" replace />} />
             </Route>
 
-            {/* atalho raiz */}
-            <Route path="/" element={<Navigate to="/home" replace />} />
-          </Route>
-
-          {/* fallback */}
-          <Route path="*" element={<Navigate to="/login" replace />} />
-        </Routes>
+            {/* fallback */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </Routes>
+        </UserProvider>
       </AuthProvider>
     </Router>
   );
