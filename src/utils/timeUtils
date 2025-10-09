@@ -1,0 +1,46 @@
+// src/utils/timeUtils.js
+
+// Converte string HH:MM para minutos totais
+export function parseHora(str) {
+  const [h, m] = str.split(":").map(Number);
+  return h * 60 + m;
+}
+
+// Converte minutos totais para string HH:MM
+export function formatarMinutos(min) {
+  const h = Math.floor(Math.abs(min) / 60);
+  const m = Math.abs(min) % 60;
+  return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`;
+}
+
+// Soma os períodos de batidas (pares de entrada e saída)
+export function calcularHoras(batidas) {
+  if (batidas.length < 2) return "00:00";
+  let totalMinutos = 0;
+
+  for (let i = 0; i < batidas.length; i += 2) {
+    if (batidas[i + 1]) {
+      const entrada = parseHora(batidas[i]);
+      const saida = parseHora(batidas[i + 1]);
+      totalMinutos += saida - entrada;
+    }
+  }
+  return formatarMinutos(totalMinutos);
+}
+
+// Calcula o banco de horas (diferença entre trabalhadas e previstas)
+export function calcularBanco(trabalhadas, previstas) {
+  const t = parseHora(trabalhadas);
+  const p = parseHora(previstas);
+  const saldo = t - p;
+  return (saldo >= 0 ? "+" : "-") + formatarMinutos(saldo);
+}
+
+// Define status do registro de ponto
+export function definirStatus(r) {
+  if (r.batidas.length === 0) return "sem-registro";
+  if (r.batidas.length < 4) return "incompleto";
+  if (r.bancoHoras.startsWith("+")) return "positivo";
+  if (r.bancoHoras.startsWith("-")) return "negativo";
+  return "completo";
+}
