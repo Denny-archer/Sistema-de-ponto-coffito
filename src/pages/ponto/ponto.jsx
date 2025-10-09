@@ -85,7 +85,7 @@ function Ponto() {
     <div className="container-fluid py-4 px-3 px-md-4 min-vh-100 d-flex flex-column">
       <div className="mb-4 text-center">
         <BotaoVoltar />
-        <h2 className="fw-bold mb-1 mt-2">{`Olá, ${user.nome.split(" ")[0]} 👋`}</h2>
+        <h2 className="fw-bold mb-1 mt-2">{`Olá, ${user.nome.split(" ")[0]} `}</h2>
         <p className="text-muted mb-0">Escolha o tipo de ponto para registrar</p>
       </div>
 

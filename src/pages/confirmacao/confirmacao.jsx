@@ -55,10 +55,6 @@ function RegistroDetalhes({ result, tipoInfo, dataAtual, horaAtual, user }) {
     <div className="card border-0 bg-light mb-4 text-start shadow-sm">
       <div className="card-body p-3">
         <p>
-          <Hash size={16} className="me-2 text-muted" /> <strong>ID:</strong>{" "}
-          {result?.id || "-"}
-        </p>
-        <p>
           <User size={16} className="me-2 text-muted" />{" "}
           <strong>Usuário:</strong> {user?.nome || "-"}
         </p>
@@ -67,25 +63,21 @@ function RegistroDetalhes({ result, tipoInfo, dataAtual, horaAtual, user }) {
           <strong>Email:</strong> {user?.email || "-"}
         </p>
         <p>
-          <strong>Tipo:</strong> {tipoInfo.label}
+          <Clock size={16} className="me-2 text-muted" />{" "}
+          <strong>Hora:</strong> {horaAtual}
         </p>
         <p>
           <CalendarDays size={16} className="me-2 text-muted" />{" "}
           <strong>Data:</strong> {dataAtual}
         </p>
         <p>
-          <Clock size={16} className="me-2 text-muted" />{" "}
-          <strong>Hora:</strong> {horaAtual}
+          <strong>Tipo:</strong> {tipoInfo.label}
         </p>
-        {result?.caminho_imagem && (
-          <p>
-            <strong>Imagem salva em:</strong> {result.caminho_imagem}
-          </p>
-        )}
       </div>
     </div>
   );
 }
+
 
 export default function Confirmacao() {
   const navigate = useNavigate();

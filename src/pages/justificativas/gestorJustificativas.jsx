@@ -21,7 +21,7 @@ const api = {
     if (filtros.status) {
       // Converte valores numéricos do frontend para strings do backend
       const statusMap = {
-        "1": "Pendente",
+        "1": "Aguardando Validação",
         "2": "Aprovada", 
         "3": "Reprovada"
       };
@@ -61,7 +61,7 @@ const api = {
         motivo: j.texto,
         anexo_url: j.nome_anexo ? `/uploads/${j.nome_anexo}` : null,
         // 🔹 Convertendo status string para o formato do frontend
-        status: j.status?.toLowerCase() || "pendente",
+        status: j.status?.toLowerCase() || "Aguardando Validação",
         validador: j.validador,
         criado_em: j.criado_em,
         atualizado_em: j.atualizado_em
@@ -84,33 +84,18 @@ const api = {
   },
 
   // 🔹 PATCH para aprovar/reprovar - ajustado para o backend real
-  async patchJustificativa(id, resposta, motivo = null) {
-    // Converte resposta numérica para string que o backend espera
-    const statusMap = {
-      1: "Pendente",
-      2: "Aprovada",
-      3: "Reprovada"
-    };
-    
-    const payload = {
-      status: statusMap[resposta] || "Pendente"
-    };
-    
-    if (motivo) {
-      payload.motivo_reprovacao = motivo;
-    }
+ // 🔹 PATCH para aprovar/reprovar - ajustado exatamente ao backend real
+async patchJustificativa(id, resposta) {
+  const payload = { resposta }; // 👈 backend quer esse formato puro
 
-    console.log("📤 Enviando PATCH:", { id, payload });
+  console.log("📤 Enviando PATCH:", { id, payload });
 
-    const { data } = await http.patch(
-      `/justificativas/${id}`,
-      payload,
-      {
-        headers: { "Content-Type": "application/json" },
-      }
-    );
-    return data;
-  },
+  const { data } = await http.patch(`/justificativas/${id}`, payload, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  return data;
+},
 
   async patchPonto(pontoId, body) {
     const { data } = await http.patch(`/pontos/${pontoId}`, body);
@@ -121,16 +106,27 @@ const api = {
 // 🔹 Componente StatusPill atualizado para trabalhar com strings
 const StatusPill = ({ value }) => {
   const map = {
-    pendente: { variant: "warning", label: "Pendente" },
+    aguardando_validacao: { variant: "warning", label: "Aguardando Validação" },
     aprovada: { variant: "success", label: "Aprovada" },
     reprovada: { variant: "danger", label: "Reprovada" },
   };
-  
-  // Converte para lowercase para garantir compatibilidade
-  const normalizedValue = value?.toLowerCase() || "pendente";
-  const { variant, label } = map[normalizedValue] || { variant: "secondary", label: "Desconhecido" };
-  
-  return <Badge bg={variant} className="px-3 py-2 text-capitalize">{label}</Badge>;
+
+  const normalizedValue =
+    typeof value === "number"
+      ? value === 1
+        ? "aguardando_validacao"
+        : value === 2
+        ? "aprovada"
+        : "reprovada"
+      : value?.toLowerCase?.() || "aguardando_validacao";
+
+  const { variant, label } = map[normalizedValue] || map.aguardando_validacao;
+
+  return (
+    <Badge bg={variant} className="px-3 py-2 text-capitalize">
+      {label}
+    </Badge>
+  );
 };
 
 const TipoPill = ({ value }) => {
@@ -223,6 +219,9 @@ export default function GestorJustificativas() {
 
     try {
       await api.patchJustificativa(item.id, 2);
+      setItens((prev) =>
+        prev.map((i) => (i.id === item.id ? { ...i, status: "Aprovada" } : i))
+      );
       await carregar();
       Swal.fire({
         toast: true,
@@ -260,7 +259,7 @@ export default function GestorJustificativas() {
     if (!confirm.isConfirmed) return;
 
     try {
-      await api.patchJustificativa(item.id, 3, confirm.value || null);
+      await api.patchJustificativa(item.id, 3);
       await carregar();
       Swal.fire({
         toast: true,
@@ -300,7 +299,7 @@ export default function GestorJustificativas() {
           usuario: item.colaborador_nome, 
           data: item.criado_em || new Date().toISOString() 
         },
-        ...(item.status !== "pendente" && item.atualizado_em
+        ...(item.status !== "Aguardando Validação" && item.atualizado_em
           ? [
               {
                 acao: item.status === "aprovada" ? "Aprovada" : "Reprovada",
@@ -371,7 +370,7 @@ export default function GestorJustificativas() {
             <Form.Label>Status</Form.Label>
             <Form.Select value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="">Todos</option>
-              <option value="1">Pendente</option>
+              <option value="1">Aguardando Validação</option>
               <option value="2">Aprovada</option>
               <option value="3">Reprovada</option>
             </Form.Select>
@@ -477,7 +476,7 @@ export default function GestorJustificativas() {
                     </td>
                     <td><StatusPill value={j.status} /></td>
                     <td className="text-end">
-                      {j.status === "pendente" ? (
+                      {String(j.status).toLowerCase().includes("aguard") || j.status === 1 ? (
                         <>
                           <Button
                             size="sm"
@@ -496,11 +495,8 @@ export default function GestorJustificativas() {
                             <XCircle size={16} className="me-1" /> Reprovar
                           </Button>
                         </>
-                      ) : (
-                        <Button size="sm" variant="outline-secondary" disabled>
-                          {j.status === "aprovada" ? "Aprovada" : "Reprovada"}
-                        </Button>
-                      )}
+                      ) : null}
+
                       <Button
                         size="sm"
                         variant="outline-primary"
@@ -510,6 +506,7 @@ export default function GestorJustificativas() {
                         <Eye size={16} className="me-1" /> Detalhes
                       </Button>
                     </td>
+
                   </tr>
                 ))
               )}
@@ -556,7 +553,7 @@ export default function GestorJustificativas() {
               <Button variant="outline-secondary" onClick={closeModal}>
                 Fechar
               </Button>
-              {current.status === "pendente" && (
+              {current.status === "Aguardando Validação" && (
                 <>
                   <Button variant="danger" onClick={() => handleReprovarRapido(current)}>
                     <XCircle size={16} className="me-1" /> Reprovar

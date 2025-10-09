@@ -63,3 +63,18 @@
   .animate-pop-in {
     animation: popIn 0.5s ease-out;
   }
+
+  /* login.css (acréscimos) */
+.input-group-custom .form-control {
+  min-height: 44px; /* alvo de toque confortável */
+}
+
+.input-group-custom .btn.btn-link {
+  line-height: 1;
+}
+
+@media (max-width: 420px) {
+  .login-card {
+    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+  }
+}

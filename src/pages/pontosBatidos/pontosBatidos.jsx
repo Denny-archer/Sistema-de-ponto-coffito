@@ -162,48 +162,71 @@ function PontosBatidos() {
     }
   };
 
-  async function enviarJustificativa() {
-    if (!dataHora || !motivo.trim()) {
-      Swal.fire({
-        icon: "warning",
-        title: "Campos obrigatórios!",
-        text: "Preencha data e motivo antes de enviar.",
-        confirmButtonColor: "#0d6efd",
-      });
-      return;
-    }
-
-    try {
-      setEnviandoJustificativa(true);
-
-      const data = new Date(dataHora);
-      const tz = data.getTimezoneOffset() * 60000;
-      const dataLocalISO = new Date(data.getTime() - tz).toISOString();
-
-      const payload = {
-        id_requerente: user?.id || 0,
-        data_requerida: dataLocalISO,
-        texto: motivo,
-        nome_anexo: anexo ? anexo.name : null,
-        criado_em: new Date().toISOString(),
-      };
-
-      const response = await http.post("/justificativas/", payload, {
-        headers: { "Content-Type": "application/json" },
-      });
-
-      Swal.fire({ icon: "success", title: "Justificativa enviada!", confirmButtonColor: "#0d6efd" });
-      setShowJustModal(false);
-      setMotivo("");
-      setAnexo(null);
-      console.log("Resposta:", response.data);
-    } catch (err) {
-      console.error("Erro ao enviar justificativa:", err);
-      Swal.fire({ icon: "error", title: "Erro ao enviar justificativa", confirmButtonColor: "#f44336" });
-    } finally {
-      setEnviandoJustificativa(false);
-    }
+ async function enviarJustificativa() {
+  if (!dataHora || !motivo.trim()) {
+    Swal.fire({
+      icon: "warning",
+      title: "Campos obrigatórios!",
+      text: "Preencha a data e o motivo antes de enviar.",
+      confirmButtonColor: "#0d6efd",
+    });
+    return;
   }
+
+  try {
+    setEnviandoJustificativa(true);
+
+    // 👉 Formata a data no padrão que o back espera: "YYYY-MM-DD HH:mm"
+    const dataObj = new Date(dataHora);
+    const ano = dataObj.getFullYear();
+    const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
+    const dia = String(dataObj.getDate()).padStart(2, "0");
+    const hora = String(dataObj.getHours()).padStart(2, "0");
+    const minuto = String(dataObj.getMinutes()).padStart(2, "0");
+    const dataFormatada = `${ano}-${mes}-${dia} ${hora}:${minuto}`;
+
+    // 👉 Cria FormData apenas com o arquivo (como no Swagger)
+    const formData = new FormData();
+    if (anexo) formData.append("anexo", anexo);
+
+    // 👉 Monta a URL com query params (data_requerida e texto)
+    const url = `/justificativas/?data_requerida=${encodeURIComponent(
+      dataFormatada
+    )}&texto=${encodeURIComponent(motivo)}`;
+
+    // 👉 Envia multipart/form-data
+    const response = await http.post(url, formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+
+    Swal.fire({
+      icon: "success",
+      title: "Justificativa enviada!",
+      text: "Sua justificativa foi registrada com sucesso.",
+      confirmButtonColor: "#00c9a7",
+    });
+
+    setShowJustModal(false);
+    setMotivo("");
+    setAnexo(null);
+    console.log("✅ Justificativa enviada:", response.data);
+  } catch (err) {
+    console.error("❌ Erro ao enviar justificativa:", err);
+    const msg =
+      err.response?.data?.detail ||
+      "Erro inesperado ao enviar justificativa. Verifique os campos e tente novamente.";
+
+    Swal.fire({
+      icon: "error",
+      title: "Erro ao enviar justificativa",
+      text: msg,
+      confirmButtonColor: "#f44336",
+    });
+  } finally {
+    setEnviandoJustificativa(false);
+  }
+}
+
 
   return (
     <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3 bg-light">

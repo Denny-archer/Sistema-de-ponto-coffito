@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Button, Card, Spinner, Form, Image } from "react-bootstrap";
-import { FaUser, FaLock, FaUserTie, FaUsers } from "react-icons/fa";
+import { FaUser, FaLock, FaUserTie, FaUsers, FaEye, FaEyeSlash } from "react-icons/fa";
 import Swal from "sweetalert2";
 import logo from "../../assets/logo.png";
 import useAuth from "../../hooks/useAuth";
@@ -14,43 +14,58 @@ export default function Login() {
   const { fetchUser, clearUser } = useUser();
 
   const [showWelcome, setShowWelcome] = useState(true);
-  const [form, setForm] = useState({ email: "", senha: "" });
+  // ⚠️ mantém os mesmos nomes de campos para não quebrar seu serviço
+  const [form, setForm] = useState({ email: "", senha: "" }); // "email" pode conter matrícula também
   const [lembrar, setLembrar] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loadingTipo, setLoadingTipo] = useState(null); // 'gestor' | 'colaborador' | null
   const [erro, setErro] = useState("");
+  const [showPwd, setShowPwd] = useState(false);
 
-  // 🌀 Tela de boas-vindas inicial
+  // validação: email OU matrícula (apenas dígitos)
+  const isEmail = (v) => /\S+@\S+\.\S+/.test(v);
+  const isMatricula = (v) => /^\d+$/.test(v); // aceita qualquer quantidade de dígitos
+  const loginOk = isEmail(form.email) || isMatricula(form.email);
+  const senhaOk = form.senha.trim().length > 0;
+  const formOk = loginOk && senhaOk;
+
+  // alterna teclado conforme conteúdo
+  const loginInputMode = isMatricula(form.email) ? "numeric" : "email";
+
   useEffect(() => {
     const timer = setTimeout(() => setShowWelcome(false), 1800);
     return () => clearTimeout(timer);
   }, []);
 
-  // Atualiza valores dos campos
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // 🔹 Lógica principal de login
+  // Enter = Colaborador
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (formOk && !loading) handleLogin("colaborador");
+  };
+
   const handleLogin = async (tipo) => {
+    if (!formOk) return;
     setErro("");
     setLoading(true);
+    setLoadingTipo(tipo);
 
     try {
-      // Autentica e salva token
+      // 👇 Backend já aceita email OU matrícula neste campo
       await signIn({
-        email: form.email,
+        email: form.email,        // se for só dígitos, vai como matrícula
         password: form.senha,
         remember: lembrar,
       });
 
-      // Busca o usuário logado via token
+      // valida via /usuarios/me
       const usuario = await fetchUser();
-      console.log("Usuário autenticado:", usuario);
-
       if (!usuario) throw new Error("Falha ao identificar usuário.");
 
-      // Redirecionamento baseado no tipo
       if (tipo === "gestor") {
         if (usuario.tipo_usuario === 1 || usuario.tipo_usuario === "Administrador") {
           navigate("/gestor", { replace: true });
@@ -85,10 +100,10 @@ export default function Login() {
       });
     } finally {
       setLoading(false);
+      setLoadingTipo(null);
     }
   };
 
-  // 🟢 Tela de boas-vindas animada
   if (showWelcome) {
     return (
       <Container className="vh-100 d-flex flex-column justify-content-center align-items-center bg-welcome animate-fade-in">
@@ -99,7 +114,6 @@ export default function Login() {
     );
   }
 
-  // 🧩 Tela principal de login
   return (
     <Container
       fluid
@@ -122,32 +136,52 @@ export default function Login() {
         <Card.Body>
           <Card.Title className="fs-4 fw-bold text-primary text-center mb-4">Acesso ao Sistema</Card.Title>
 
-          {erro && <div className="alert alert-danger py-2 text-sm mb-3">{erro}</div>}
+          {erro && (
+            <div className="alert alert-danger py-2 text-sm mb-3" role="alert" aria-live="polite">
+              {erro}
+            </div>
+          )}
 
-          <Form>
-            <Form.Group className="mb-3 d-flex align-items-center input-group-custom" controlId="formEmail">
-              <FaUser className="me-2 icon-lg text-secondary" />
+          <Form onSubmit={handleSubmit} noValidate>
+            {/* E-mail ou Matrícula */}
+            <Form.Group className="mb-3 d-flex align-items-center input-group-custom" controlId="formLogin">
+              <FaUser className="me-2 icon-lg text-secondary" aria-hidden />
               <Form.Control
-                type="email"
-                name="email"
-                placeholder="Digite seu e-mail"
+                type="text"
+                inputMode={loginInputMode}
+                autoComplete="username"
+                autoCapitalize="none"
+                name="email" // mantém o nome para não quebrar o signIn
+                placeholder="Digite seu e-mail ou matrícula"
                 value={form.email}
                 onChange={handleChange}
                 required
-                autoFocus
+                aria-invalid={!loginOk}
               />
             </Form.Group>
 
-            <Form.Group className="mb-3 d-flex align-items-center input-group-custom" controlId="formSenha">
-              <FaLock className="me-2 icon-lg text-secondary" />
+            {/* Senha com toggle */}
+            <Form.Group className="mb-3 d-flex align-items-center input-group-custom position-relative" controlId="formSenha">
+              <FaLock className="me-2 icon-lg text-secondary" aria-hidden />
               <Form.Control
-                type="password"
+                type={showPwd ? "text" : "password"}
+                autoComplete="current-password"
                 name="senha"
                 placeholder="Digite sua senha"
                 value={form.senha}
                 onChange={handleChange}
                 required
+                aria-invalid={!senhaOk}
               />
+              <button
+                type="button"
+                className="btn btn-link px-2 position-absolute end-0 me-2"
+                onClick={() => setShowPwd((v) => !v)}
+                aria-label={showPwd ? "Ocultar senha" : "Mostrar senha"}
+                style={{ textDecoration: "none" }}
+              >
+                {showPwd ? <FaEyeSlash /> : <FaEye />}
+              </button>
             </Form.Group>
 
             <div className="d-flex align-items-center mb-3">
@@ -160,16 +194,17 @@ export default function Login() {
               />
             </div>
 
-            {/* Botões de acesso */}
+            {/* Botões */}
             <div className="d-flex flex-column gap-2 mt-3">
               <Button
                 type="button"
                 variant="primary"
                 className="w-100 d-flex align-items-center justify-content-center"
                 onClick={() => handleLogin("gestor")}
-                disabled={loading}
+                disabled={!formOk || loading}
+                aria-label="Entrar como Gestor"
               >
-                {loading ? (
+                {loadingTipo === "gestor" ? (
                   <Spinner animation="border" size="sm" className="me-2" />
                 ) : (
                   <FaUserTie className="me-2" />
@@ -178,13 +213,14 @@ export default function Login() {
               </Button>
 
               <Button
-                type="button"
+                type="submit" // Enter entra como colaborador
                 variant="outline-primary"
                 className="w-100 d-flex align-items-center justify-content-center"
                 onClick={() => handleLogin("colaborador")}
-                disabled={loading}
+                disabled={!formOk || loading}
+                aria-label="Entrar como Colaborador"
               >
-                {loading ? (
+                {loadingTipo === "colaborador" ? (
                   <Spinner animation="border" size="sm" className="me-2" />
                 ) : (
                   <FaUsers className="me-2" />
