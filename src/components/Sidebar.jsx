@@ -62,13 +62,13 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             <Users size={20} />
             <span>Cadastros</span>
           </NavLink>
-          <NavLink
+          {/* <NavLink
             to="/folha"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
           >
             <FileText size={20} />
             <span>Folha</span>
-          </NavLink>
+          </NavLink> */}
         </nav>
 
         {/* Logout */}

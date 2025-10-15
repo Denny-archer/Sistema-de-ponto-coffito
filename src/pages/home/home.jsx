@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Clock, CalendarDays } from "lucide-react";
-import userPhoto from "../../assets/user-photo.jpg";
+import { FaUserCircle } from "react-icons/fa";
 import "../../styles/custom.css";
 import useUser from "../../hooks/useUser";
 import { clearToken } from "../../services/http";
@@ -33,14 +33,21 @@ function Home() {
     (d) => d.toLocaleTimeString("pt-BR", { hour12: false }),
     []
   );
-  const horaFormatada = useMemo(() => formatarHora(horaAtual), [horaAtual, formatarHora]);
+  const horaFormatada = useMemo(
+    () => formatarHora(horaAtual),
+    [horaAtual, formatarHora]
+  );
 
   const getTipoUsuarioLabel = (tipo) => {
     switch (tipo) {
-      case 1: return "Administrador";
-      case 2: return "Gestor";
-      case 3: return "Colaborador";
-      default: return "";
+      case 1:
+        return "Administrador";
+      case 2:
+        return "Gestor";
+      case 3:
+        return "Colaborador";
+      default:
+        return "Usuário";
     }
   };
 
@@ -61,23 +68,24 @@ function Home() {
       <header className="container py-3">
         <div className="card shadow-sm mx-auto" style={{ maxWidth: 460 }}>
           <div className="card-body d-flex align-items-center gap-3">
+            {/* Ícone do usuário (sem foto) */}
+            <FaUserCircle
+              size={64}
+              className="text-secondary flex-shrink-0"
+              aria-label="Usuário sem foto"
+            />
+
             <div className="flex-grow-1">
               <h6 className="fw-semibold mb-1 text-break">
                 Conselho Federal de Fisioterapia e Terapia Ocupacional
               </h6>
               <p className="mb-0 fw-semibold">{user?.nome}</p>
               <p className="mb-0 text-muted">
-                {user?.cargo || getTipoUsuarioLabel(user?.tipo_usuario)}
+                {user?.cargo
+                  ? user.cargo
+                  : getTipoUsuarioLabel(user?.tipo_usuario)}
               </p>
             </div>
-
-            <img
-              src={userPhoto}
-              alt={`Foto de ${user?.nome || "usuário"}`}
-              className="rounded-circle border shadow-sm flex-shrink-0"
-              style={{ width: 64, height: 64, objectFit: "cover" }}
-              onError={(e) => (e.currentTarget.style.display = "none")}
-            />
           </div>
         </div>
       </header>

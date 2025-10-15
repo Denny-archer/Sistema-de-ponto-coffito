@@ -2,14 +2,14 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
 import { getBatidas } from "../../services/batidas";
+import DetalhesPontoDiario from "../../components/DetalhesPontoDiario/DetalhesPontoDiario";
+
 import {
   Download,
   ArrowLeft,
   Clock,
   CalendarDays,
   AlertCircle,
-  CheckCircle2,
-  XCircle,
 } from "lucide-react";
 import { Modal, Button, Form, Spinner } from "react-bootstrap";
 import Swal from "sweetalert2";
@@ -21,8 +21,6 @@ import {
   calcularHoras,
   calcularBanco,
   definirStatus,
-  parseHora,
-  formatarMinutos,
 } from "../../utils/timeUtils";
 
 function PontosBatidos() {
@@ -32,25 +30,23 @@ function PontosBatidos() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeStartDate, setActiveStartDate] = useState(new Date());
 
-  // Estados de carregamento separados
   const [loadingBatidas, setLoadingBatidas] = useState(true);
   const [enviandoJustificativa, setEnviandoJustificativa] = useState(false);
   const [baixando, setBaixando] = useState(false);
-
   const [registros, setRegistros] = useState([]);
 
-  // Modal
   const [showJustModal, setShowJustModal] = useState(false);
   const [dataHora, setDataHora] = useState("");
   const [motivo, setMotivo] = useState("");
   const [anexo, setAnexo] = useState(null);
 
-  // Carrega batidas ao montar
-  useEffect(() => {
+ useEffect(() => {
+  if (user?.id) {
     carregarBatidas();
-  }, []);
+  }
+}, [user]);
 
-  // Atualiza datetime-local ao abrir modal
+
   useEffect(() => {
     if (showJustModal) {
       const agora = new Date();
@@ -61,10 +57,16 @@ function PontosBatidos() {
   }, [showJustModal]);
 
   async function carregarBatidas() {
+    if (!user?.id) return;
     setLoadingBatidas(true);
+
     try {
-      const batidas = await getBatidas();
-      const agrupadas = agruparPorDia(batidas);
+      // 🔹 Usa o filtro nativo da API
+      const response = await http.get(`/batidas/?id_usuario=${user.id}&skip=0&limit=9999`);
+      const batidasUsuario = response.data?.batidas || [];
+
+      // 🔹 Mantém o agrupamento e cálculo das horas
+      const agrupadas = agruparPorDia(batidasUsuario);
       setRegistros(agrupadas);
     } catch (err) {
       console.error("Erro ao carregar batidas:", err);
@@ -78,6 +80,8 @@ function PontosBatidos() {
       setLoadingBatidas(false);
     }
   }
+
+
 
   const agruparPorDia = (batidas) => {
     const registrosMap = {};
@@ -131,7 +135,12 @@ function PontosBatidos() {
 
     return (
       <div className="d-flex justify-content-center mt-1" title={`Status: ${status}`}>
-        {isToday && <div className="dot-indicator bg-primary" style={{ width: 4, height: 4, borderRadius: "50%" }}></div>}
+        {isToday && (
+          <div
+            className="dot-indicator bg-primary"
+            style={{ width: 4, height: 4, borderRadius: "50%" }}
+          ></div>
+        )}
         {status !== "sem-registro" && (
           <div
             className={`dot-indicator ${
@@ -162,71 +171,66 @@ function PontosBatidos() {
     }
   };
 
- async function enviarJustificativa() {
-  if (!dataHora || !motivo.trim()) {
-    Swal.fire({
-      icon: "warning",
-      title: "Campos obrigatórios!",
-      text: "Preencha a data e o motivo antes de enviar.",
-      confirmButtonColor: "#0d6efd",
-    });
-    return;
+  async function enviarJustificativa() {
+    if (!dataHora || !motivo.trim()) {
+      Swal.fire({
+        icon: "warning",
+        title: "Campos obrigatórios!",
+        text: "Preencha a data e o motivo antes de enviar.",
+        confirmButtonColor: "#0d6efd",
+      });
+      return;
+    }
+
+    try {
+      setEnviandoJustificativa(true);
+
+      const dataObj = new Date(dataHora);
+      const ano = dataObj.getFullYear();
+      const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
+      const dia = String(dataObj.getDate()).padStart(2, "0");
+      const hora = String(dataObj.getHours()).padStart(2, "0");
+      const minuto = String(dataObj.getMinutes()).padStart(2, "0");
+      const dataFormatada = `${ano}-${mes}-${dia} ${hora}:${minuto}`;
+
+      const formData = new FormData();
+      if (anexo) formData.append("anexo", anexo);
+
+      const url = `/justificativas/?data_requerida=${encodeURIComponent(
+        dataFormatada
+      )}&texto=${encodeURIComponent(motivo)}`;
+
+      const response = await http.post(url, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      Swal.fire({
+        icon: "success",
+        title: "Justificativa enviada!",
+        text: "Sua justificativa foi registrada com sucesso.",
+        confirmButtonColor: "#00c9a7",
+      });
+
+      setShowJustModal(false);
+      setMotivo("");
+      setAnexo(null);
+      console.log("✅ Justificativa enviada:", response.data);
+    } catch (err) {
+      console.error("❌ Erro ao enviar justificativa:", err);
+      const msg =
+        err.response?.data?.detail ||
+        "Erro inesperado ao enviar justificativa. Verifique os campos e tente novamente.";
+
+      Swal.fire({
+        icon: "error",
+        title: "Erro ao enviar justificativa",
+        text: msg,
+        confirmButtonColor: "#f44336",
+      });
+    } finally {
+      setEnviandoJustificativa(false);
+    }
   }
-
-  try {
-    setEnviandoJustificativa(true);
-
-    // 👉 Formata a data no padrão que o back espera: "YYYY-MM-DD HH:mm"
-    const dataObj = new Date(dataHora);
-    const ano = dataObj.getFullYear();
-    const mes = String(dataObj.getMonth() + 1).padStart(2, "0");
-    const dia = String(dataObj.getDate()).padStart(2, "0");
-    const hora = String(dataObj.getHours()).padStart(2, "0");
-    const minuto = String(dataObj.getMinutes()).padStart(2, "0");
-    const dataFormatada = `${ano}-${mes}-${dia} ${hora}:${minuto}`;
-
-    // 👉 Cria FormData apenas com o arquivo (como no Swagger)
-    const formData = new FormData();
-    if (anexo) formData.append("anexo", anexo);
-
-    // 👉 Monta a URL com query params (data_requerida e texto)
-    const url = `/justificativas/?data_requerida=${encodeURIComponent(
-      dataFormatada
-    )}&texto=${encodeURIComponent(motivo)}`;
-
-    // 👉 Envia multipart/form-data
-    const response = await http.post(url, formData, {
-      headers: { "Content-Type": "multipart/form-data" },
-    });
-
-    Swal.fire({
-      icon: "success",
-      title: "Justificativa enviada!",
-      text: "Sua justificativa foi registrada com sucesso.",
-      confirmButtonColor: "#00c9a7",
-    });
-
-    setShowJustModal(false);
-    setMotivo("");
-    setAnexo(null);
-    console.log("✅ Justificativa enviada:", response.data);
-  } catch (err) {
-    console.error("❌ Erro ao enviar justificativa:", err);
-    const msg =
-      err.response?.data?.detail ||
-      "Erro inesperado ao enviar justificativa. Verifique os campos e tente novamente.";
-
-    Swal.fire({
-      icon: "error",
-      title: "Erro ao enviar justificativa",
-      text: msg,
-      confirmButtonColor: "#f44336",
-    });
-  } finally {
-    setEnviandoJustificativa(false);
-  }
-}
-
 
   return (
     <div className="container-fluid d-flex flex-column min-vh-100 py-3 px-3 bg-light">
@@ -279,24 +283,36 @@ function PontosBatidos() {
                     <Clock size={18} className="me-2" /> Detalhes - {formatDate(selectedDate)}
                   </h5>
                 </div>
+
                 <div className="card-body">
                   {detalheDia ? (
                     <>
                       <div className="d-flex align-items-center mb-3 p-3 rounded bg-light">
                         <span className="me-2">{detalheDia.status}</span>
                       </div>
+
                       <h6 className="fw-bold mb-2">Batidas</h6>
-                       <div className="d-flex flex-wrap gap-2 mb-3">
+                      <div className="d-flex flex-wrap gap-2 mb-3">
                         {detalheDia.batidas.map((hora, i) => (
                           <div key={i} className="d-flex align-items-center gap-1">
-                            <span className="fw-bold">{i + 1}.</span> {/* Número fora da badge */}
-                            <span className="badge bg-primary p-2">{hora}</span> {/* Hora */}
+                            <span className="fw-bold">{i + 1}.</span>
+                            <span className="badge bg-primary p-2">{hora}</span>
                           </div>
                         ))}
                       </div>
+
+                      {/* 🟢 Componente de resumo diário */}
+                      <DetalhesPontoDiario
+                        colaboradorId={user?.id}
+                        dataSelecionada={selectedDate}
+                      />
+
                       <div className="text-center mt-3">
                         {(["incompleto", "sem-registro"].includes(detalheDia.status)) && (
-                          <button className="btn btn-outline-primary" onClick={() => setShowJustModal(true)}>
+                          <button
+                            className="btn btn-outline-primary"
+                            onClick={() => setShowJustModal(true)}
+                          >
                             <AlertCircle size={18} className="me-2" /> Justificar Ponto
                           </button>
                         )}
@@ -313,18 +329,27 @@ function PontosBatidos() {
             </div>
           </div>
 
+          {/* Botões inferiores */}
           <div className="text-center mt-4 d-flex flex-column flex-sm-row justify-content-center align-items-center gap-3">
-            <button className="btn btn-primary btn-lg w-100 w-sm-auto" onClick={handleDownload} disabled={baixando}>
-              {baixando ? <Spinner size="sm" className="me-2" /> : <Download size={20} className="me-2" />} Baixar Relatório
+            <button
+              className="btn btn-primary btn-lg w-100 w-sm-auto"
+              onClick={handleDownload}
+              disabled={baixando}
+            >
+              {baixando ? <Spinner size="sm" className="me-2" /> : <Download size={20} className="me-2" />} 
+              Baixar Relatório
             </button>
-            <button className="btn btn-primary btn-lg w-100 w-sm-auto" onClick={() => setShowJustModal(true)}>
+            <button
+              className="btn btn-primary btn-lg w-100 w-sm-auto"
+              onClick={() => setShowJustModal(true)}
+            >
               Nova Justificativa
             </button>
           </div>
         </div>
       </div>
 
-      {/* Modal */}
+      {/* Modal Justificativa */}
       <Modal show={showJustModal} onHide={() => setShowJustModal(false)} centered>
         <Modal.Header closeButton>
           <Modal.Title>Nova Justificativa</Modal.Title>
@@ -333,22 +358,41 @@ function PontosBatidos() {
           <Form>
             <Form.Group className="mb-3">
               <Form.Label>Data e Hora</Form.Label>
-              <Form.Control type="datetime-local" value={dataHora} onChange={(e) => setDataHora(e.target.value)} />
+              <Form.Control
+                type="datetime-local"
+                value={dataHora}
+                onChange={(e) => setDataHora(e.target.value)}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Motivo</Form.Label>
-              <Form.Control as="textarea" rows={3} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+              <Form.Control
+                as="textarea"
+                rows={3}
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+              />
             </Form.Group>
             <Form.Group className="mb-3">
               <Form.Label>Anexo (opcional)</Form.Label>
-              <Form.Control type="file" accept=".jpg,.png,.pdf" onChange={(e) => setAnexo(e.target.files[0])} />
+              <Form.Control
+                type="file"
+                accept=".jpg,.png,.pdf"
+                onChange={(e) => setAnexo(e.target.files[0])}
+              />
             </Form.Group>
           </Form>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowJustModal(false)}>Cancelar</Button>
-          <Button variant="primary" onClick={enviarJustificativa} disabled={enviandoJustificativa}>
-            {enviandoJustificativa ? <Spinner size="sm" className="me-2" /> : null} Enviar
+          <Button variant="secondary" onClick={() => setShowJustModal(false)}>
+            Cancelar
+          </Button>
+          <Button
+            variant="primary"
+            onClick={enviarJustificativa}
+            disabled={enviandoJustificativa}
+          >
+            {enviandoJustificativa && <Spinner size="sm" className="me-2" />} Enviar
           </Button>
         </Modal.Footer>
       </Modal>
