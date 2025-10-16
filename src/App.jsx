@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import AuthProvider from "./context/AuthProvider";
 import UserProvider from "./context/UserProvider";
-// import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Layouts
 import AppLayoutGestor from "./components/AppLayoutGestor";
@@ -31,7 +31,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
 
             {/* privadas */}
-            {/* <Route element={<ProtectedRoute />}> */}
+            <Route element={<ProtectedRoute />}>
               {/* fluxo colaborador */}
               <Route path="/home" element={<Home />} />
               <Route path="/ponto" element={<Ponto />} />
@@ -51,11 +51,11 @@ export default function App() {
               </Route>
 
               {/* atalho raiz */}
-              {/* <Route path="/" element={<Navigate to="/home" replace />} />
-            </Route> */}
+              <Route path="/" element={<Navigate to="/home" replace />} />
+            </Route>
 
             {/* fallback */}
-            {/* <Route path="*" element={<Navigate to="/login" replace />} /> */}
+            <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         </UserProvider>
       </AuthProvider>
