@@ -4,10 +4,14 @@ import react from "@vitejs/plugin-react";
 export default defineConfig({
   plugins: [react()],
   server: {
-    host: true,   
+    host: "0.0.0.0", // 🔹 necessário para funcionar dentro do container
     port: 5173,
-    allowedHosts: [
-      "05e6ba901a4d.ngrok-free.app", // 🔹 copie exatamente o host gerado pelo ngrok
-    ]
+    strictPort: true,
+    allowedHosts: ["all"], // 🔹 permite qualquer host acessar (local, IP, ngrok, etc.)
+    cors: true, // 🔹 habilita CORS do dev server
+  },
+  preview: {
+    port: 4173,
+    host: "0.0.0.0",
   },
 });

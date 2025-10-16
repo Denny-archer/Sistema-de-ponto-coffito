@@ -1,6 +1,13 @@
 import React from "react";
 import { NavLink } from "react-router-dom";
-import { Users, FileText, BarChart3, LogOut, User } from "lucide-react";
+import {
+  Users,
+  FileText,
+  BarChart3,
+  LogOut,
+  User,
+  ClipboardList,
+} from "lucide-react";
 import useUser from "../hooks/useUser";
 import { clearToken } from "../services/http";
 
@@ -55,6 +62,7 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             <BarChart3 size={20} />
             <span>Dashboard</span>
           </NavLink>
+
           <NavLink
             to="/colaboradores"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
@@ -62,13 +70,26 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             <Users size={20} />
             <span>Cadastros</span>
           </NavLink>
-          {/* <NavLink
+
+          {/* ✅ Novo item - Empregados */}
+          <NavLink
+            to="/gestor/empregados"
+            className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
+          >
+            <ClipboardList size={20} />
+            <span>Empregados</span>
+          </NavLink>
+
+          {/* Se quiser voltar a exibir a Folha */}
+          {/* 
+          <NavLink
             to="/folha"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
           >
             <FileText size={20} />
             <span>Folha</span>
-          </NavLink> */}
+          </NavLink>
+          */}
         </nav>
 
         {/* Logout */}
