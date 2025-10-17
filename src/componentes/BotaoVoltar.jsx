@@ -2,18 +2,41 @@ import React from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 
-function BotaoVoltar({ destinoPadrao = "/home", label = "Voltar" }) {
+/**
+ * Fluxo esperado:
+ * login → /home → (/ponto OU /pontosBatidos) → /selfie → /confirmacao
+ * Em QUALQUER etapa, o botão volta uma etapa "segura" e, no fim, cai em /home.
+ */
+function BotaoVoltar({
+  fallback = "/home",
+  label = "Voltar",
+  // opcional: se seu "ponto" for /pontosBatidos, troque aqui sem mexer no componente
+  pontoRoute = "/ponto",
+}) {
   const navigate = useNavigate();
-  const location = useLocation();
+  const { pathname } = useLocation();
+
+  const resolveBackTarget = () => {
+    // normaliza para evitar trailing slashes
+    const path = pathname.replace(/\/+$/, "");
+
+    if (path.startsWith("/confirmacao"))  return "/selfie";
+    if (path.startsWith("/selfie"))       return pontoRoute;
+    if (path.startsWith("/pontosBatidos"))return "/home";
+    if (path.startsWith("/ponto"))        return "/home";
+    // qualquer outra rota cai no fallback seguro
+    return fallback;
+  };
 
   const handleVoltar = () => {
-    // Se o histórico não tiver página anterior, volta para destino padrão
-    if (window.history.length > 2) navigate(-1);
-    else navigate(destinoPadrao);
+    const target = resolveBackTarget();
+    // replace evita empilhar navegações e previne loops com -1
+    navigate(target, { replace: true });
   };
 
   return (
     <button
+      type="button"
       onClick={handleVoltar}
       className="btn fw-semibold d-inline-flex align-items-center gap-2 px-3 py-2 shadow-sm"
       style={{

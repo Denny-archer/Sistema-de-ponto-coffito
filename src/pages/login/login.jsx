@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Container, Button, Card, Spinner, Form, Image } from "react-bootstrap";
 import { FaUser, FaLock, FaUserTie, FaUsers, FaEye, FaEyeSlash } from "react-icons/fa";
@@ -13,56 +13,35 @@ export default function Login() {
   const { signIn } = useAuth();
   const { fetchUser, clearUser } = useUser();
 
-  const [showWelcome, setShowWelcome] = useState(true);
-  // ⚠️ mantém os mesmos nomes de campos para não quebrar seu serviço
-  const [form, setForm] = useState({ email: "", senha: "" }); // "email" pode conter matrícula também
+  const [form, setForm] = useState({ email: "", senha: "" });
   const [lembrar, setLembrar] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [loadingTipo, setLoadingTipo] = useState(null); // 'gestor' | 'colaborador' | null
+  const [loadingTipo, setLoadingTipo] = useState(null);
   const [erro, setErro] = useState("");
   const [showPwd, setShowPwd] = useState(false);
 
-  // validação: email OU matrícula (apenas dígitos)
-  const isEmail = (v) => /\S+@\S+\.\S+/.test(v);
-  const isMatricula = (v) => /^\d+$/.test(v); // aceita qualquer quantidade de dígitos
-  const loginOk = isEmail(form.email) || isMatricula(form.email);
+  const loginOk = form.email.trim().length > 0;
   const senhaOk = form.senha.trim().length > 0;
   const formOk = loginOk && senhaOk;
-
-  // alterna teclado conforme conteúdo
-  const loginInputMode = isMatricula(form.email) ? "numeric" : "email";
-
-  useEffect(() => {
-    const timer = setTimeout(() => setShowWelcome(false), 1800);
-    return () => clearTimeout(timer);
-  }, []);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Enter = Colaborador
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (formOk && !loading) handleLogin("colaborador");
-  };
-
   const handleLogin = async (tipo) => {
-    if (!formOk) return;
+    if (!formOk || loading) return;
     setErro("");
     setLoading(true);
     setLoadingTipo(tipo);
 
     try {
-      // 👇 Backend já aceita email OU matrícula neste campo
       await signIn({
-        email: form.email,        // se for só dígitos, vai como matrícula
+        email: form.email,
         password: form.senha,
         remember: lembrar,
       });
 
-      // valida via /usuarios/me
       const usuario = await fetchUser();
       if (!usuario) throw new Error("Falha ao identificar usuário.");
 
@@ -85,34 +64,38 @@ export default function Login() {
       clearUser();
 
       let msg = "Falha no login. Verifique suas credenciais.";
+      const status = err?.response?.status;
       const detail = err?.response?.data?.detail;
-      if (detail) {
+
+      if (status === 401) msg = "Usuário ou senha incorretos.";
+      else if (status === 404) msg = "Usuário não encontrado.";
+      else if (status === 422) msg = "Formato de dados inválido.";
+      else if (err.message?.includes("Network")) msg = "Erro de conexão com o servidor.";
+      else if (detail) {
         if (Array.isArray(detail)) msg = detail.map((e) => e.msg).join(", ");
         else if (typeof detail === "string") msg = detail;
       }
 
       setErro(msg);
+      const card = document.querySelector(".login-card");
+      if (card) {
+        card.classList.add("error");
+        setTimeout(() => card.classList.remove("error"), 500);
+      }
+
       Swal.fire({
         icon: "error",
         title: "Erro ao entrar",
         text: msg,
         confirmButtonColor: "#0d6efd",
+        timer: 3000,
+        timerProgressBar: true,
       });
     } finally {
       setLoading(false);
       setLoadingTipo(null);
     }
   };
-
-  if (showWelcome) {
-    return (
-      <Container className="vh-100 d-flex flex-column justify-content-center align-items-center bg-welcome animate-fade-in">
-        <Image src={logo} alt="Logo" width={100} className="mb-4 animate-pop-in" />
-        <h1 className="text-primary fw-bold animate-slide-up">Bem-vindo ao Sistema!</h1>
-        <Spinner animation="border" variant="primary" className="mt-3" />
-      </Container>
-    );
-  }
 
   return (
     <Container
@@ -142,36 +125,39 @@ export default function Login() {
             </div>
           )}
 
-          <Form onSubmit={handleSubmit} noValidate>
+          <Form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleLogin("colaborador");
+            }}
+            noValidate
+          >
             {/* E-mail ou Matrícula */}
             <Form.Group className="mb-3 d-flex align-items-center input-group-custom" controlId="formLogin">
-              <FaUser className="me-2 icon-lg text-secondary" aria-hidden />
+              <FaUser className="me-2 icon-lg text-secondary" />
               <Form.Control
                 type="text"
-                inputMode={loginInputMode}
-                autoComplete="username"
-                autoCapitalize="none"
-                name="email" // mantém o nome para não quebrar o signIn
+                name="email"
                 placeholder="Digite seu e-mail ou matrícula"
                 value={form.email}
                 onChange={handleChange}
                 required
-                aria-invalid={!loginOk}
               />
             </Form.Group>
 
-            {/* Senha com toggle */}
-            <Form.Group className="mb-3 d-flex align-items-center input-group-custom position-relative" controlId="formSenha">
-              <FaLock className="me-2 icon-lg text-secondary" aria-hidden />
+            {/* Senha */}
+            <Form.Group
+              className="mb-3 d-flex align-items-center input-group-custom position-relative"
+              controlId="formSenha"
+            >
+              <FaLock className="me-2 icon-lg text-secondary" />
               <Form.Control
                 type={showPwd ? "text" : "password"}
-                autoComplete="current-password"
                 name="senha"
                 placeholder="Digite sua senha"
                 value={form.senha}
                 onChange={handleChange}
                 required
-                aria-invalid={!senhaOk}
               />
               <button
                 type="button"
@@ -194,38 +180,40 @@ export default function Login() {
               />
             </div>
 
-            {/* Botões */}
             <div className="d-flex flex-column gap-2 mt-3">
               <Button
                 type="button"
                 variant="primary"
                 className="w-100 d-flex align-items-center justify-content-center"
                 onClick={() => handleLogin("gestor")}
-                disabled={!formOk || loading}
-                aria-label="Entrar como Gestor"
+                disabled={loading}
               >
                 {loadingTipo === "gestor" ? (
-                  <Spinner animation="border" size="sm" className="me-2" />
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" /> Entrando...
+                  </>
                 ) : (
-                  <FaUserTie className="me-2" />
+                  <>
+                    <FaUserTie className="me-2" /> Entrar como Gestor
+                  </>
                 )}
-                Entrar como Gestor
               </Button>
 
               <Button
-                type="submit" // Enter entra como colaborador
+                type="submit"
                 variant="outline-primary"
                 className="w-100 d-flex align-items-center justify-content-center"
-                onClick={() => handleLogin("colaborador")}
-                disabled={!formOk || loading}
-                aria-label="Entrar como Colaborador"
+                disabled={loading}
               >
                 {loadingTipo === "colaborador" ? (
-                  <Spinner animation="border" size="sm" className="me-2" />
+                  <>
+                    <Spinner animation="border" size="sm" className="me-2" /> Entrando...
+                  </>
                 ) : (
-                  <FaUsers className="me-2" />
+                  <>
+                    <FaUsers className="me-2" /> Entrar como Colaborador
+                  </>
                 )}
-                Entrar como Colaborador
               </Button>
             </div>
           </Form>
