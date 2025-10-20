@@ -3,6 +3,11 @@ import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
 import { getBatidas } from "../../services/batidas";
 import DetalhesPontoDiario from "../../components/DetalhesPontoDiario/DetalhesPontoDiario";
+import JustificativasDoDia from "../../components/Justificativas/JustificativasDoDia";
+import { keyFromDate } from "../../utils/dateUtils";
+import useJustificativasMarcadores from "../../hooks/useJustificativasMarcadores";
+
+
 
 import {
   Download,
@@ -29,6 +34,16 @@ function PontosBatidos() {
 
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [activeStartDate, setActiveStartDate] = useState(new Date());
+
+  const { hasJust, refresh: refreshMarcadores } = useJustificativasMarcadores({
+  userId: user?.id,
+  userType: user?.tipo_usuario, // 🔹 novo campo
+  activeStartDate,
+  });
+  
+  const [refreshKey, setRefreshKey] = useState(0);
+
+
 
   const [loadingBatidas, setLoadingBatidas] = useState(true);
   const [enviandoJustificativa, setEnviandoJustificativa] = useState(false);
@@ -128,18 +143,19 @@ function PontosBatidos() {
 
   const getDayStatus = (date) => registrosMap[formatDate(date)]?.status || "sem-registro";
 
-  const tileContent = ({ date, view }) => {
-    if (view !== "month") return null;
-    const status = getDayStatus(date);
-    const isToday = formatDate(date) === formatDate(new Date());
+ const tileContent = ({ date, view }) => {
+  if (view !== "month") return null;
+  const status = getDayStatus(date);
+  const isToday = formatDate(date) === formatDate(new Date());
+  const temJust = hasJust(date);
 
-    return (
+  return (
       <div className="d-flex justify-content-center mt-1" title={`Status: ${status}`}>
         {isToday && (
           <div
             className="dot-indicator bg-primary"
             style={{ width: 4, height: 4, borderRadius: "50%" }}
-          ></div>
+          />
         )}
         {status !== "sem-registro" && (
           <div
@@ -153,11 +169,24 @@ function PontosBatidos() {
                 : "bg-danger"
             }`}
             style={{ width: 6, height: 6, borderRadius: "50%", marginLeft: 2 }}
-          ></div>
+          />
+        )}
+        {temJust && (
+          <div
+            className="ms-1"
+            style={{
+              width: 6,
+              height: 6,
+              borderRadius: 2,
+              background: "#0d6efd",
+            }}
+            title="Dia com justificativa"
+          />
         )}
       </div>
     );
   };
+
 
   const handleDownload = async () => {
     setBaixando(true);
@@ -181,7 +210,7 @@ function PontosBatidos() {
       });
       return;
     }
-
+    
     try {
       setEnviandoJustificativa(true);
 
@@ -210,6 +239,9 @@ function PontosBatidos() {
         text: "Sua justificativa foi registrada com sucesso.",
         confirmButtonColor: "#00c9a7",
       });
+
+      await refreshMarcadores();
+      setRefreshKey((v) => v + 1);
 
       setShowJustModal(false);
       setMotivo("");
@@ -288,8 +320,11 @@ function PontosBatidos() {
                   {detalheDia ? (
                     <>
                       <div className="d-flex align-items-center mb-3 p-3 rounded bg-light">
-                        <span className="me-2">{detalheDia.status}</span>
-                      </div>
+                          <span className="fw-semibold text-muted">{detalheDia.status}</span>
+                        </div>
+
+                      {/* ...mais abaixo, após o DetalhesPontoDiario ... */}
+                      <JustificativasDoDia userId={user?.id} date={selectedDate} showList refreshKey={refreshKey}/>
 
                       <h6 className="fw-bold mb-2">Batidas</h6>
                       <div className="d-flex flex-wrap gap-2 mb-3">

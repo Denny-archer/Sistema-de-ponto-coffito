@@ -1,12 +1,8 @@
-/* login.css */
-/* login.css */
-
-/* NÃO mexa mais no #root */
+/* === Estrutura base === */
 #root {
   display: unset !important;
 }
 
-/* wrapper do login */
 .login-page {
   min-height: 100vh;
   display: flex;
@@ -15,14 +11,26 @@
   background: #f8f9fa;
 }
 
-/* limita largura */
 .login-container {
   width: 100%;
   max-width: 500px;
 }
 
+/* === Cartões === */
+.login-card {
+  border-radius: 16px;
+  transition: all 0.25s ease;
+  background-color: #fff;
+}
+
+.login-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.06);
+}
+
+/* === Botões === */
 .btn-outline-primary {
-  background-color: white;
+  background-color: #fff;
   border-width: 2px;
   transition: all 0.2s ease;
 }
@@ -32,49 +40,99 @@
   color: #0056b3;
 }
 
-.login-card {
-  border-radius: 16px;
+.btn-primary:disabled,
+.btn-outline-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
-
-@keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-  
-  @keyframes slideUp {
-    from { transform: translateY(20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
-  }
-  
-  @keyframes popIn {
-    0% { transform: scale(0.8); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
-  }
-  
-  .animate-fade-in {
-    animation: fadeIn 0.8s ease-in-out;
-  }
-  
-  .animate-slide-up {
-    animation: slideUp 0.8s ease-out;
-  }
-  
-  .animate-pop-in {
-    animation: popIn 0.5s ease-out;
-  }
-
-  /* login.css (acréscimos) */
+/* === Inputs === */
 .input-group-custom .form-control {
-  min-height: 44px; /* alvo de toque confortável */
+  min-height: 44px;
+  border-radius: 8px;
+  transition: box-shadow 0.2s ease;
+}
+
+.input-group-custom .form-control:focus {
+  box-shadow: 0 0 0 0.15rem rgba(13, 110, 253, 0.25);
 }
 
 .input-group-custom .btn.btn-link {
   line-height: 1;
+  color: #6c757d;
 }
 
-@media (max-width: 420px) {
+.input-group-custom .btn.btn-link:hover {
+  color: #0d6efd;
+}
+
+/* === Feedback visual (erro, animações) === */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+
+.login-card.error {
+  animation: shake 0.4s ease-in-out;
+  border: 1.5px solid #dc3545;
+}
+
+.alert-danger {
+  border-radius: 10px;
+  background-color: #f8d7da;
+  color: #721c24;
+  border: none;
+  font-size: 0.9rem;
+}
+
+/* === Animações de entrada === */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.8s ease-in-out;
+}
+
+.animate-slide-up {
+  animation: slideUp 0.8s ease-out;
+}
+
+.animate-pop-in {
+  animation: popIn 0.5s ease-out;
+}
+
+/* === Responsividade === */
+@media (max-width: 576px) {
   .login-card {
-    box-shadow: 0 6px 18px rgba(0,0,0,.08);
+    border-radius: 12px;
+    padding: 1.5rem;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
+  }
+
+  .btn {
+    font-size: 0.95rem;
+  }
+
+  .form-control {
+    font-size: 0.95rem;
+  }
+}
+
+@media (max-width: 360px) {
+  .login-card {
+    padding: 1rem;
   }
 }
