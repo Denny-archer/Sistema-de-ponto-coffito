@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Calendar from "react-calendar";
 import { getBatidas } from "../../services/batidas";
 import DetalhesPontoDiario from "../../components/DetalhesPontoDiario/DetalhesPontoDiario";
-import JustificativasDoDia from "../../components/Justificativas/JustificativasDoDia";
+import JustificativasDoDia from "../../components/justificativas/JustificativasDoDia";
 import { keyFromDate } from "../../utils/dateUtils";
 import useJustificativasMarcadores from "../../hooks/useJustificativasMarcadores";
 
