@@ -494,7 +494,7 @@ function Colaboradores() {
                       <SortableHeader field="dataAdmissao">
                         <Calendar size={14} className="me-1" /> Admissão
                       </SortableHeader>
-                      <th>Último Ponto</th>
+                      
                       <th>Horas/Mês</th>
                       <SortableHeader field="status">Status</SortableHeader>
                       <th className="text-center">Ações</th>
@@ -526,9 +526,7 @@ function Colaboradores() {
                         <td>
                           <small className="text-muted">{colab.dataAdmissao}</small>
                         </td>
-                        <td>
-                          <small className="text-muted">{colab.ultimoPonto}</small>
-                        </td>
+                       
                         <td>
                           <span className="fw-semibold">{colab.horasTrabalhadas}</span>
                         </td>
