@@ -77,7 +77,7 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
           >
             <ClipboardList size={20} />
-            <span>Empregados</span>
+            <span>Folhas de Ponto</span>
           </NavLink>
 
           {/* Se quiser voltar a exibir a Folha */}

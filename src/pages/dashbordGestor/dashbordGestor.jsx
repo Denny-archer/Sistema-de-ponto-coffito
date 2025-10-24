@@ -9,6 +9,7 @@ import {
   MoreVertical 
 } from "lucide-react";
 import { http } from "../../services/http";
+import { getSaldoDiario } from "../../services/batidas";
 import useUser from "../../hooks/useUser";
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
@@ -28,6 +29,11 @@ function DashboardGestor() {
   const [batidas, setBatidas] = useState([]);
   const [justificativasPendentes, setJustificativasPendentes] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [showModalHistorico, setShowModalHistorico] = useState(false);
+  const [batidasColab, setBatidasColab] = useState([]);
+  const [colaboradorSelecionado, setColaboradorSelecionado] = useState(null);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+
 
   // 🔹 Carregar dados gerais do painel
  // 🔹 Carregar dados gerais do painel
@@ -48,6 +54,29 @@ useEffect(() => {
         (j) => j.status === "Aguardando Validação"
       ).length;
       setJustificativasPendentes(pendentes);
+      
+       // 🔹 Buscar saldo diário de cada colaborador
+        const hoje = new Date().toISOString().split("T")[0];
+
+        const usuariosComSaldo = await Promise.all(
+          (dataUsuarios.usuarios || []).map(async (u) => {
+            try {
+              const saldo = await getSaldoDiario(u.id, hoje);
+              return {
+                ...u,
+                saldo_diario: saldo?.saldo_diario || "00:00",
+                entrada: saldo?.entrada || null,
+                saida: saldo?.saida || null,
+                total_trabalhado: saldo?.total_trabalhado || "00:00",
+              };
+            } catch {
+              return { ...u, saldo_diario: "00:00" };
+            }
+          })
+        );
+
+        setUsuarios(usuariosComSaldo);
+
 
       setLoading(false);
     } catch (err) {
@@ -69,38 +98,75 @@ useEffect(() => {
 
   // 🔹 Determinar status
   const getStatus = (batidasUsuario) => {
-    if (!batidasUsuario.length) return "ausente";
-    const ultima = batidasUsuario[batidasUsuario.length - 1];
-    if (ultima.descricao?.toLowerCase().includes("entrada")) return "trabalhando";
-    if (ultima.descricao?.toLowerCase().includes("almoco")) return "almoco";
-    if (ultima.descricao?.toLowerCase().includes("saida")) return "finalizado";
+  if (!batidasUsuario.length) return "ausente";
+
+  // Normaliza as descrições
+  const descricoes = batidasUsuario.map((b) => b.descricao?.toLowerCase());
+
+  // Contagem de eventos
+  const qtd = descricoes.length;
+  const ultima = descricoes[qtd - 1];
+
+  // 1️⃣ Só tem ENTRADA → ainda está TRABALHANDO
+  if (qtd === 1 && ultima.includes("entrada")) return "trabalhando";
+
+  // 2️⃣ Saiu para ALMOÇO (tem entrada e almoço, mas não voltou ainda)
+  if (descricoes.includes("entrada") && ultima.includes("almoco")) return "almoco";
+
+  // 3️⃣ Voltou do almoço → Trabalhando novamente
+  if (
+    descricoes.filter((d) => d.includes("entrada")).length >= 2 &&
+    !ultima.includes("saida")
+  )
     return "trabalhando";
-  };
+
+  // 4️⃣ Finalizou o expediente (tem uma saída final registrada)
+  if (ultima.includes("saida") && qtd >= 3) return "finalizado";
+
+  // fallback
+  return "trabalhando";
+};
+
+// 🔹 Carregar histórico de batidas de um colaborador
+const abrirHistorico = async (colaborador) => {
+  setShowModalHistorico(true);
+  setColaboradorSelecionado(colaborador);
+  setLoadingHistorico(true);
+
+  try {
+    const { data } = await http.get(`/batidas/?id_usuario=${colaborador.id}`);
+    // Ordena mais recentes primeiro
+    const batidasOrdenadas = (data.batidas || []).sort(
+      (a, b) => new Date(b.data_batida) - new Date(a.data_batida)
+    );
+    setBatidasColab(batidasOrdenadas);
+  } catch (error) {
+    console.error("Erro ao carregar histórico:", error);
+    setBatidasColab([]);
+  } finally {
+    setLoadingHistorico(false);
+  }
+};
+
 
   // 🔹 Montar colaboradores
   const colaboradoresHoje = usuarios.map((u) => {
-    const bUser = batidas.filter((b) => b.id_usuario === u.id);
-    const entrada = formatarHora(
-      bUser.find((b) => b.descricao?.toLowerCase().includes("entrada"))?.data_batida
-    );
-    const almoco = formatarHora(
-      bUser.find((b) => b.descricao?.toLowerCase().includes("almoco"))?.data_batida
-    );
-    const saida = formatarHora(
-      bUser.find((b) => b.descricao?.toLowerCase().includes("saida"))?.data_batida
-    );
+  const bUser = batidas.filter((b) => b.id_usuario === u.id);
 
-    return {
-      id: u.id,
-      nome: u.nome,
-      departamento: u.departamento || "Não informado",
-      entrada,
-      saidaAlmoco: almoco,
-      saida,
-      horasExtras: "00:00",
-      status: getStatus(bUser),
-    };
-  });
+  return {
+    id: u.id,
+    nome: u.nome,
+    departamento: u.departamento || "Não informado",
+    entrada: formatarHora(u.entrada),
+    saidaAlmoco: formatarHora(
+      bUser.find((b) => b.descricao?.toLowerCase().includes("almoco"))?.data_batida
+    ),
+    saida: formatarHora(u.saida),
+    horasExtras: u.saldo_diario || "00:00",
+    status: getStatus(bUser),
+  };
+});
+
 
   // 🔹 KPIs
   const totalUsuarios = usuarios.length;
@@ -233,7 +299,7 @@ useEffect(() => {
                       <th>Nome</th>
                       <th>Departamento</th>
                       <th>Entrada</th>
-                      <th>Almoço</th>
+                      
                       <th>Saída</th>
                       <th>Horas Extras</th>
                       <th>Status</th>
@@ -249,20 +315,52 @@ useEffect(() => {
                             {colab.nome}
                           </div>
                         </td>
+
                         <td>{colab.departamento}</td>
-                        <td>{colab.entrada}</td>
-                        <td>{colab.saidaAlmoco}</td>
-                        <td>{colab.saida}</td>
-                        <td className={colab.horasExtras !== "00:00" ? "text-warning fw-bold" : "text-muted"}>
+
+                        {/* ENTRADA */}
+                        <td>
+                          {colab.entrada && colab.entrada !== "--:--" ? (
+                            colab.entrada
+                          ) : (
+                            <span className="text-muted d-flex align-items-center gap-1">
+                              <Clock size={14} /> ⏳
+                            </span>
+                          )}
+                        </td>
+
+                        
+
+                        {/* SAÍDA */}
+                        <td>
+                          {colab.saida && colab.saida !== "--:--" ? (
+                            colab.saida
+                          ) : (
+                            <span className="text-muted d-flex align-items-center gap-1">
+                              <Clock size={14} /> ⏳
+                            </span>
+                          )}
+                        </td>
+
+                        {/* HORAS EXTRAS */}
+                        <td
+                          className={`fw-semibold ${
+                            colab.horasExtras.startsWith("-")
+                              ? "text-danger"
+                              : colab.horasExtras !== "00:00"
+                              ? "text-success"
+                              : "text-muted"
+                          }`}
+                        >
                           {colab.horasExtras}
                         </td>
+
+                        {/* STATUS */}
                         <td>
                           <span
                             className={`badge ${
                               colab.status === "trabalhando"
                                 ? "bg-success"
-                                : colab.status === "almoco"
-                                ? "bg-warning"
                                 : colab.status === "finalizado"
                                 ? "bg-info"
                                 : "bg-danger"
@@ -271,17 +369,169 @@ useEffect(() => {
                             {colab.status.charAt(0).toUpperCase() + colab.status.slice(1)}
                           </span>
                         </td>
+
+                        {/* AÇÕES */}
                         <td>
-                          <button className="btn btn-outline-dark btn-sm">Histórico</button>
+                          <button
+                            className="btn btn-outline-dark btn-sm"
+                            onClick={() => abrirHistorico(colab)}
+                          >
+                            Histórico
+                          </button>
+
                         </td>
                       </tr>
                     ))}
                   </tbody>
+
                 </table>
               </div>
             </div>
           </div>
         </section>
+         {/* 🔹 Modal de Histórico de Batidas */}
+          {showModalHistorico && (
+            <div
+              className="modal fade show d-block"
+              tabIndex="-1"
+              style={{ backgroundColor: "rgba(0,0,0,0.5)" }}
+            >
+              <div className="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                <div className="modal-content shadow border-0">
+                  {/* HEADER */}
+                  <div className="modal-header bg-light border-bottom">
+                    <div>
+                      <h5 className="modal-title fw-bold mb-1">
+                        Histórico de Batidas
+                      </h5>
+                      <small className="text-muted">
+                        {colaboradorSelecionado?.nome} —{" "}
+                        <span className="text-primary">{colaboradorSelecionado?.departamento}</span>
+                      </small>
+                    </div>
+                    <button
+                      className="btn-close"
+                      onClick={() => setShowModalHistorico(false)}
+                    />
+                  </div>
+
+                  {/* FILTRO DE DATA */}
+                  <div className="px-4 pt-3 pb-0">
+                    <div className="d-flex align-items-center justify-content-between mb-3">
+                      <div>
+                        <label className="form-label small text-muted mb-1">
+                          Filtrar por data
+                        </label>
+                        <input
+                          type="date"
+                          className="form-control form-control-sm"
+                          max={new Date().toISOString().split("T")[0]}
+                          onChange={async (e) => {
+                            const data = e.target.value;
+                            if (!data) return;
+                            setLoadingHistorico(true);
+                            try {
+                              const { data: resp } = await http.get(
+                                `/batidas/?id_usuario=${colaboradorSelecionado.id}&data=${data}`
+                              );
+                              setBatidasColab(resp.batidas || []);
+                            } finally {
+                              setLoadingHistorico(false);
+                            }
+                          }}
+                        />
+                      </div>
+                      <small className="text-muted">
+                        Total de registros:{" "}
+                        <strong>{batidasColab.length}</strong>
+                      </small>
+                    </div>
+                  </div>
+
+                  {/* BODY */}
+                  <div className="modal-body pt-0">
+                    {loadingHistorico ? (
+                      <div className="text-center py-4">
+                        <div className="spinner-border text-primary" />
+                        <p className="text-muted mt-2 mb-0">Carregando histórico...</p>
+                      </div>
+                    ) : batidasColab.length === 0 ? (
+                      <div className="text-center py-4 text-muted">
+                        Nenhuma batida registrada nesta data.
+                      </div>
+                    ) : (
+                      <div className="table-responsive">
+                        <table className="table table-sm align-middle mb-0">
+                          <thead className="table-light">
+                            <tr>
+                              <th>Data</th>
+                              <th>Hora</th>
+                              <th>Tipo</th>
+                              <th className="text-end">Origem</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {batidasColab.map((b) => {
+                              const dataObj = new Date(b.data_batida);
+                              const data = dataObj.toLocaleDateString("pt-BR");
+                              const hora = dataObj.toLocaleTimeString("pt-BR", {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              });
+                              const desc = b.descricao?.toLowerCase();
+
+                              return (
+                                <tr key={b.id}>
+                                  <td>{data}</td>
+                                  <td className="fw-semibold">{hora}</td>
+                                  <td>
+                                    <span
+                                      className={`badge px-3 py-2 rounded-pill text-capitalize ${
+                                        desc.includes("entrada")
+                                          ? "bg-success bg-opacity-10 text-success"
+                                          : desc.includes("almoco")
+                                          ? "bg-warning bg-opacity-25 text-warning"
+                                          : desc.includes("saida")
+                                          ? "bg-info bg-opacity-25 text-info"
+                                          : "bg-secondary bg-opacity-25 text-muted"
+                                      }`}
+                                    >
+                                      {b.descricao}
+                                    </span>
+                                  </td>
+                                  <td className="text-end text-muted small">
+                                    {b.origem || "Terminal Local"}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* FOOTER */}
+                  <div className="modal-footer bg-light border-top">
+                    <div className="me-auto text-muted small">
+                      Última atualização:{" "}
+                      {new Date().toLocaleTimeString("pt-BR", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                    <button
+                      className="btn btn-outline-secondary btn-sm"
+                      onClick={() => setShowModalHistorico(false)}
+                    >
+                      Fechar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
       </main>
     </div>
   );
