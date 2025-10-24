@@ -7,12 +7,15 @@ import {
   LogOut,
   User,
   ClipboardList,
+  Clock,
 } from "lucide-react";
 import useUser from "../hooks/useUser";
 import { clearToken } from "../services/http";
+import { useBankHealth } from "../context/BankHealthContext";
 
 function Sidebar({ isOpen = false, onClose = () => {} }) {
   const { user, clearUser } = useUser();
+  const { status } = useBankHealth(); // ✅ movido para dentro
 
   const handleLogout = () => {
     clearToken();
@@ -28,6 +31,7 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
         onClick={onClose}
       />
       <aside className={`sidebar ${isOpen ? "open" : ""}`}>
+        {/* cabeçalho */}
         <div className="sidebar-header d-flex align-items-center justify-content-between px-3 py-2">
           <div className="logo d-flex align-items-center gap-2">
             <BarChart3 size={24} className="text-primary" />
@@ -35,7 +39,7 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
           </div>
         </div>
 
-        {/* Usuário logado */}
+        {/* usuário logado */}
         <div className="sidebar-user px-3 py-3 border-bottom">
           <div className="d-flex align-items-center gap-2">
             <div
@@ -53,7 +57,7 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
           </div>
         </div>
 
-        {/* Navegação */}
+        {/* navegação */}
         <nav className="sidebar-nav mt-3">
           <NavLink
             to="/gestor"
@@ -71,7 +75,6 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             <span>Cadastros</span>
           </NavLink>
 
-          {/* ✅ Novo item - Empregados */}
           <NavLink
             to="/gestor/empregados"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
@@ -80,19 +83,22 @@ function Sidebar({ isOpen = false, onClose = () => {} }) {
             <span>Folhas de Ponto</span>
           </NavLink>
 
-          {/* Se quiser voltar a exibir a Folha */}
-          {/* 
           <NavLink
-            to="/folha"
+            to="/gestor/banco-horas"
             className={({ isActive }) => `nav-item ${isActive ? "active" : ""}`}
           >
-            <FileText size={20} />
-            <span>Folha</span>
+            <Clock size={20} />
+            <span>Banco de Horas</span>
+            {status === "debito" && (
+              <span className="badge bg-danger ms-auto">Débito</span>
+            )}
+            {status === "credito" && (
+              <span className="badge bg-success ms-auto">Crédito</span>
+            )}
           </NavLink>
-          */}
         </nav>
 
-        {/* Logout */}
+        {/* logout */}
         <div className="mt-auto px-3 py-3 border-top">
           <button
             className="btn btn-sm btn-outline-danger d-flex align-items-center gap-2 w-100"

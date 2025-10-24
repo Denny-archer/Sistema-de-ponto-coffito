@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-d
 import AuthProvider from "./context/AuthProvider";
 import UserProvider from "./context/UserProvider";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { BankHealthProvider } from "./context/BankHealthContext";
 
 // Layouts
 import AppLayoutGestor from "./components/AppLayoutGestor";
@@ -17,9 +18,8 @@ import DashboardGestor from "./pages/dashbordGestor/dashbordGestor";
 import Colaboradores from "./pages/colaboradores/colaboradores";
 import Folha from "./pages/folha/folha";
 import GestorJustificativas from "./pages/justificativas/gestorJustificativas";
-
-// ✅ Novo import
 import Empregados from "./pages/gestor/Empregados";
+import BancoHoras from "./pages/gestor/BancoHoras"; // ✅ nova tela
 
 export default function App() {
   return (
@@ -32,22 +32,27 @@ export default function App() {
 
             {/* privadas */}
             <Route element={<ProtectedRoute />}>
-              {/* fluxo colaborador */}
+              {/* colaborador */}
               <Route path="/home" element={<Home />} />
               <Route path="/ponto" element={<Ponto />} />
               <Route path="/selfie" element={<Selfie />} />
               <Route path="/confirmacao" element={<Confirmacao />} />
               <Route path="/pontos" element={<PontosBatidos />} />
 
-              {/* fluxo gestor */}
-              <Route element={<AppLayoutGestor />}>
+              {/* gestor */}
+              <Route
+                element={
+                  <BankHealthProvider>
+                    <AppLayoutGestor />
+                  </BankHealthProvider>
+                }
+              >
                 <Route path="/gestor" element={<DashboardGestor />} />
                 <Route path="/gestor/justificativas" element={<GestorJustificativas />} />
                 <Route path="/colaboradores" element={<Colaboradores />} />
                 <Route path="/folha" element={<Folha />} />
-                
-                {/* ✅ nova rota */}
                 <Route path="/gestor/empregados" element={<Empregados />} />
+                <Route path="/gestor/banco-horas" element={<BancoHoras />} />
               </Route>
 
               {/* atalho raiz */}
