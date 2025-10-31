@@ -60,7 +60,7 @@ export default function DayEditorDrawer({
           await updateBatida({
             id: b.id,
             data_batida: novoDateTime,
-            descricao: `${motivo} (ajuste de ${antigaHH} → ${b.horaStr})`,
+            descricao: `${motivo} (ajuste de ${antigaHH} -> ${b.horaStr})`,
           });
         }
       }
