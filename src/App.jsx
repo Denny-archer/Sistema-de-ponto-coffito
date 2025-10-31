@@ -15,11 +15,12 @@ import Selfie from "./pages/selfie/selfie";
 import Confirmacao from "./pages/confirmacao/confirmacao";
 import PontosBatidos from "./pages/pontosBatidos/pontosBatidos";
 import DashboardGestor from "./pages/dashbordGestor/dashbordGestor";
-import Colaboradores from "./pages/colaboradores/colaboradores";
+import Colaboradores from "./pages/colaboradores"; // ✅ corrigido aqui!
 import Folha from "./pages/folha/folha";
 import GestorJustificativas from "./pages/justificativas/gestorJustificativas";
 import Empregados from "./pages/gestor/Empregados";
-import BancoHoras from "./pages/gestor/BancoHoras"; // ✅ nova tela
+import BancoHoras from "./pages/gestor/BancoHoras";
+
 
 export default function App() {
   return (

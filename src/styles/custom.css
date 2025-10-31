@@ -273,3 +273,25 @@ html, body, #root {
 
 
 
+.modal-content {
+  border-radius: 12px !important;
+}
+
+.modal-header .btn-close {
+  filter: invert(0.5);
+}
+
+.modal.fade.show.d-block {
+  animation: fadeInModal 0.25s ease;
+}
+
+@keyframes fadeInModal {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
