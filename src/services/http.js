@@ -34,8 +34,9 @@ http.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       clearToken();
-      window.location.href = "/login";
+      // apenas rejeita o erro — o redirecionamento fica por conta do hook
     }
+
     return Promise.reject(error);
   }
 );
