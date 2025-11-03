@@ -184,20 +184,7 @@ export default function ColaboradorModal({
                 </select>
               </div>
 
-              {/* Carga Horária */}
-              <div className="col-12 col-md-6">
-                <label className="form-label">Carga Horária</label>
-                <input
-                  type="time"
-                  className="form-control"
-                  value={form.cargaHoraria}
-                  onChange={(e) =>
-                    setForm({ ...form, cargaHoraria: e.target.value })
-                  }
-                  disabled={loading}
-                />
-                <small className="text-muted">Horário padrão: 08:00</small>
-              </div>
+      
             </div>
           </div>
 
