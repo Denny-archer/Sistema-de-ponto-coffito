@@ -1,18 +1,12 @@
 import React from "react";
 import { Navigate, Outlet } from "react-router-dom";
-import { getToken } from "../services/http";
-import useUser from "../hooks/useUser";
+import useAuth from "../hooks/useAuth";
 
 export default function ProtectedRoute() {
-  const token = getToken();
-  const { user, loadingUser } = useUser();
+  const { user, booting } = useAuth();
 
-  if (!token) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Exibe loading até confirmar o usuário autenticado
-  if (loadingUser) {
+  // 🔹 Enquanto ainda está carregando o AuthProvider, exibe loading
+  if (booting) {
     return (
       <div className="d-flex justify-content-center align-items-center vh-100">
         <div className="spinner-border text-primary" role="status">
@@ -22,10 +16,11 @@ export default function ProtectedRoute() {
     );
   }
 
-  // Se o usuário não foi encontrado (token inválido)
+  // 🔹 Se terminou o boot e não há usuário, redireciona
   if (!user) {
     return <Navigate to="/login" replace />;
   }
 
+  // 🔹 Tudo ok, usuário autenticado
   return <Outlet />;
 }
